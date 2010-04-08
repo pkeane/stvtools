@@ -1,0 +1,270 @@
+from operator import itemgetter, attrgetter
+from random import randint
+import sys
+
+from time import time
+
+"""
+functions for running an STV election
+
+data definitions:
+
+    ballot -- a dictionary with two elements:
+        'value': float indicating current value of the ballot
+        'data': ordered list of candidates
+    ballots -- an array of ballots
+
+    candidate -- an object with five attributes:
+            'eid': string
+            'name': string
+            'is_full_professor': Boolean
+            'step_points': array of points at each step
+            'points': points at current step
+    candidates -- a dictionary of eid, candidate
+
+    committee -- an array of candidates who have been elected
+    ballot_tally -- a dictionary of eid, points of first position candidates
+    logs -- an array of step logs
+
+configuration variables:
+    seats -- integer indicating the size of the committee to be elected
+    minimum_full_professors
+    initial_ballot_value
+"""
+
+class StvCandidate:
+    def __init__(self, eid, name, is_full_professor, step_points, points):
+        self.eid = eid
+        self.name = name
+        self.is_full_professor = is_full_professor
+        self.step_points = step_points
+        self.points = points 
+    def __repr__(self):
+        #return repr((self.eid,self.name,self.is_full_professor,self.step_points,self.points))
+        return repr((self.name,self.eid,self.points))
+
+def calculate_droop(num_of_ballots,seats,initial_ballot_value):
+    """ compute Droop Quota 
+    n.b. do not re-calculate droop after steps have begun
+    Droop is determined bu the original num of ballots (I believe -pk)
+    """
+    #compute
+    raw_droop = initial_ballot_value*num_of_ballots/(seats+1)
+    #round up to nearest integer
+    return int(round(raw_droop +.5))
+
+def even_ballot_length(ballots):
+    """ makes all ballots have the same length by appending
+    array elements of '-' to each
+    """
+    max_length = max(len(ballot['data']) for ballot in ballots)
+    for ballot in ballots:
+        length = len(ballot['data'])
+        ballot['data'].extend(['-'] * (max_length - length))
+    return ballots
+
+def ballots_to_table(ballots):
+    """accepts an array of ballots and creates a table suitable for HTML 
+    display. puts each ballot's value next to the first-place entry
+    """
+    #ballots = even_ballot_length(ballots)
+    table = []
+    #create rows
+    for i in range(len(ballots[0]['data'])):
+        row = [] 
+        #create cells in row
+        for ballot in ballots:
+            if not i:
+                #append value to top position (i.e., i == 0)
+                row.append(ballot['data'][i]+'('+str(ballot['value'])+')')
+            else:
+                row.append(ballot['data'][i])
+        table.append(row)
+    return table
+
+def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
+    seats = config['seats']
+    log = {}
+    log['step_count'] = step_count+1
+    log['ballot_table'] = ballots_to_table(ballots)
+    if len(committee) == seats: 
+        return (ballots,candidates,committee,logs)
+    else:
+        ballot_tally = get_ballot_tally(ballots) 
+        candidates = set_candidate_points(candidates,ballot_tally)
+        (candidates,ballots,committee,log) = elect_or_eliminate_one(candidates,ballots,committee,config,droop,log)
+        # http://www.wellho.net/resources/ex.php4?item=y104/f2
+        log['committee'] = committee[:] 
+        logs.append(log)
+        return run_step(ballots,candidates,committee,config,droop,logs,log['step_count'])
+
+def get_ballot_tally(ballots):
+    """ tally the points for each eid in ballot's first position """
+    tally = {}
+    for ballot in ballots:
+        eid = ballot['data'][0]
+        if '-' != eid:
+            if eid not in tally:
+                tally[eid] = 0
+            tally[eid] += ballot['value']
+    return tally
+
+def set_candidate_points(candidates,ballot_tally):
+    for eid in candidates:
+        if eid in ballot_tally:
+            candidates[eid].points = ballot_tally[eid]
+            candidates[eid].step_points.append(ballot_tally[eid])
+        else:
+            candidates[eid].points = 0 
+            candidates[eid].step_points.append(0)
+    return candidates
+
+def check_full_professor_constraint(candidates,ballots,committee,config,log):
+    """ run this check AFTER a new committe member is added """
+    purges = []
+    max_non_full = config['seats'] - config['minimum_full_professors']
+    (count_full,count_non_full) = get_committee_counts(committee)
+    if max_non_full == count_non_full:
+        #purge ballots of non-full
+        for non in get_non_full_professors(candidates):
+            ballots = purge_ballots_of_eid(ballots,non)
+        #purge candidates of non-full
+        for non in get_non_full_professors(candidates):
+            purges.append(candidates[non].name)
+            del candidates[non]
+    log['full_professor'] = ', '.join(purges)
+    return (candidates,ballots,log)
+
+def get_non_full_professors(candidates):
+    non_full = []
+    for eid in candidates:
+        if not candidates[eid].is_full_professor:
+            non_full.append(eid)
+    return non_full
+
+
+def elect_or_eliminate_one(candidates,ballots,committee,config,droop,log):
+    """ determine ONE candidate to elect or eliminate
+    """
+    seats = config['seats']
+    if len(candidates):
+        winner = get_winner(candidates)
+        if winner.points >= droop:
+            ballots = allocate_surplus(ballots,winner,droop)
+            committee.append(winner)
+            log['report'] = "added "+winner.name+" to committee"
+            del candidates[winner.eid]
+        else:
+            #nobody has at least droop
+            loser = get_loser(candidates)
+            log['report'] = "removed "+loser.name+" from ballot"
+            del candidates[loser.eid]
+            ballots = purge_ballots_of_eid(ballots,loser.eid)
+    (committee,log) = autofill_committee(candidates,ballots,committee,config,log)
+    (candidates, ballots,log) = check_full_professor_constraint(candidates,ballots,committee,config,log)
+    return (candidates,ballots,committee,log)
+
+def autofill_committee(candidates,ballots,committee,config,log):
+    additions = []
+    seats = config['seats']
+    if seats - len(committee) == len(get_ballot_tally(ballots)):
+        for eid in get_ballot_tally(ballots):
+            committee.append(candidates[eid])
+            additions.append(candidates[eid].name);
+    log['autofill'] = ', '.join(additions)
+    return (committee,log)
+
+def get_winner(candidates):
+    candidates_sorted_by_points = sorted(candidates.values(),
+                                         key=attrgetter('points'), reverse=True)
+    if len(candidates) > 1 and candidates_sorted_by_points[0].points == candidates_sorted_by_points[1].points:
+        #we have a tie
+        tied_candidates = []
+        highest_score = candidates_sorted_by_points[0].points
+        for cand in candidates_sorted_by_points:
+            if highest_score == cand.points:
+                tied_candidates.append(cand)
+        winner = break_most_points_tie(tied_candidates)
+    else:
+        #clear winner
+        winner = candidates_sorted_by_points[0]
+    return winner 
+
+def get_loser(candidates):
+    candidates_sorted_by_points = sorted(candidates.values(),
+                                         key=attrgetter('points'))
+    if len(candidates) > 1 and candidates_sorted_by_points[0].points == candidates_sorted_by_points[1].points:
+        #we have a tie
+        tied_candidates = []
+        lowest_score = candidates_sorted_by_points[0].points
+        for cand in candidates_sorted_by_points:
+            if lowest_score == cand.points:
+                tied_candidates.append(cand)
+        loser = break_lowest_points_tie(tied_candidates)
+    else:
+        #clear loser 
+        loser = candidates_sorted_by_points[0]
+    return loser
+
+def allocate_surplus(ballots,winner,droop):
+    #get beneficiary count (force float)
+    # equivalent to schwartz t - q
+    surplus = winner.points - droop
+    count = 0.0
+    t_prime_value = 0.0
+    # get count of x-ballots
+    for ballot in ballots:
+        # if winner is in first place on ballot AND
+        # there is a 'next' candidate to give points to
+        # count corresponds to schwartz p. 13 t'
+        if winner.eid == ballot['data'][0] and '-' != ballot['data'][1]:
+            count = count + 1
+            t_prime_value += ballot['value']
+
+    # allocate surplus
+    for ballot in ballots:
+        if winner.eid == ballot['data'][0] and '-' != ballot['data'][1]:
+            allocation = surplus/t_prime_value
+            ballot['value'] = ballot['value'] * allocation
+
+    #remove winner from ballots
+    for ballot in ballots:
+        if winner.eid in ballot['data']:
+            ballot['data'].remove(winner.eid)
+            #keep ballots same length
+            ballot['data'].append('-')
+    return ballots
+
+def purge_ballots_of_eid(ballots,eid):
+    for ballot in ballots:
+        if eid in ballot['data']:
+            ballot['data'].remove(eid)
+            ballot['data'].append('-')
+    return ballots
+
+def break_most_points_tie(candidates):
+    """ returns ONE candidate """
+    #TODO
+    r = randint(0,len(candidates)-1)
+    return candidates[r]
+
+def break_lowest_points_tie(candidates):
+    """ returns ONE candidate """
+    #TODO
+    r = randint(0,len(candidates)-1)
+    return candidates[r]
+
+def get_committee_counts(committee):
+    full = 0
+    non_full = 0
+    for candidate in committee:
+        if candidate.is_full_professor:
+            full = full + 1
+        else:
+            non_full = non_full + 1
+    return (full,non_full) 
+
+
+
+
+
