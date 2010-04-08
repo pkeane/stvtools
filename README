@@ -1,2 +1,34 @@
 tools for running a single transferable vote election
 designed for specific needs of the UT Austin Government Dept.
+
+Here is a sample code snippet for running an election.
+[Note that we are using the Django Framework database 
+connector (ORM) to pull data from the database]. The
+resulting "logs" array contains details of the process.
+
+CONFIG = {}
+CONFIG['seats'] = 12 
+CONFIG['minimum_full_professors'] = 4
+CONFIG['initial_ballot_value'] = 100.0 
+
+ballots = [] 
+for db_ballot in Ballot.objects.all():
+	b = {}
+	b['data'] = json.loads(db_ballot.data)
+    b['value'] = CONFIG['initial_ballot_value']
+    ballots.append(b)
+ballots = stvtools.even_ballot_length(ballots)
+
+candidates = {} 
+for db_cand in Candidate.objects.all():
+	c = stvtools.StvCandidate( db_cand.eid, db_cand.name, db_cand.is_full_professor,[],0)
+	candidates[db_cand.eid] = c
+
+droop = stvtools.calculate_droop(len(ballots),CONFIG['seats'],CONFIG['initial_ballot_value'])
+
+logs = [] 
+committee = []
+
+(ballots,candidates,committee,logs) = stvtools.run_step(ballots,candidates,committee,CONFIG,droop,logs)
+
+
