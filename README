@@ -32,3 +32,4 @@ committee = []
 (ballots,candidates,committee,logs) = stvtools.run_step(ballots,candidates,committee,CONFIG,droop,logs)
 
 
+.
