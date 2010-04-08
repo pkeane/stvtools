@@ -83,7 +83,7 @@ def ballots_to_table(ballots):
     return table
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
-    """ This is the "master function.  It can be called once, and will recurse
+    """ This is the "master" function.  It can be called once, and will recurse
     until committee is full, outputting resulting data
     """
     seats = config['seats']
