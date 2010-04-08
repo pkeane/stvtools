@@ -46,7 +46,7 @@ class StvCandidate:
 def calculate_droop(num_of_ballots,seats,initial_ballot_value):
     """ compute Droop Quota 
     n.b. do not re-calculate droop after steps have begun
-    Droop is determined bu the original num of ballots (I believe -pk)
+    Droop is determined by the original num of ballots.
     """
     #compute
     raw_droop = initial_ballot_value*num_of_ballots/(seats+1)
@@ -83,10 +83,14 @@ def ballots_to_table(ballots):
     return table
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
+    """ This is the "master function.  It can be called once, and will recurse
+    until committee is full, outputting resulting data
+    """
     seats = config['seats']
     log = {}
     log['step_count'] = step_count+1
     log['ballot_table'] = ballots_to_table(ballots)
+    # exit condition
     if len(committee) == seats: 
         return (ballots,candidates,committee,logs)
     else:
@@ -96,6 +100,7 @@ def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
         # http://www.wellho.net/resources/ex.php4?item=y104/f2
         log['committee'] = committee[:] 
         logs.append(log)
+        # recursion
         return run_step(ballots,candidates,committee,config,droop,logs,log['step_count'])
 
 def get_ballot_tally(ballots):
@@ -165,6 +170,10 @@ def elect_or_eliminate_one(candidates,ballots,committee,config,droop,log):
     return (candidates,ballots,committee,log)
 
 def autofill_committee(candidates,ballots,committee,config,log):
+    """ fills remaining seats automatically when number
+    of candidates left standing equals the number of open
+    seats
+    """
     additions = []
     seats = config['seats']
     if seats - len(committee) == len(get_ballot_tally(ballots)):
@@ -207,7 +216,6 @@ def get_loser(candidates):
     return loser
 
 def allocate_surplus(ballots,winner,droop):
-    #get beneficiary count (force float)
     # equivalent to schwartz t - q
     surplus = winner.points - droop
     count = 0.0
