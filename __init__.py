@@ -90,11 +90,12 @@ def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     log = {}
     log['step_count'] = step_count+1
     log['ballot_table'] = ballots_to_table(ballots)
+    ballot_tally = get_ballot_tally(ballots) 
+    log['ballot_tally'] = ballot_tally
     # exit condition
     if len(committee) == seats: 
         return (ballots,candidates,committee,logs)
     else:
-        ballot_tally = get_ballot_tally(ballots) 
         candidates = set_candidate_points(candidates,ballot_tally)
         (candidates,ballots,committee,log) = elect_or_eliminate_one(candidates,ballots,committee,config,droop,log)
         # http://www.wellho.net/resources/ex.php4?item=y104/f2
