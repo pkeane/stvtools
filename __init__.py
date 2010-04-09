@@ -243,9 +243,9 @@ def allocate_surplus(ballots,winner,droop,log):
         if winner.eid == ballot['data'][0] and '-' != ballot['data'][1]:
             beneficiaries.append(ballot['data'][1])
             allocation = surplus/t_prime_value
-            # this works because 100 points of the ballot
-            # is "spent" on winner, so fractional increment
-            # makes sense
+            # this is still a bit 'magic' to me. would like to
+            # have a way to tally beneficiary gains to demonstrate
+            # that they equal the surplus -pk
             ballot['value'] = ballot['value'] * allocation
 
     log['beneficiaries'] = ', '.join(beneficiaries)
