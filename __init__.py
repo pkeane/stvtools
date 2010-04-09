@@ -236,19 +236,20 @@ def allocate_surplus(ballots,winner,droop,log):
     log['t_prime'] = t_prime_value
     log['winner_points'] = winner.points 
 
-    beneficiaries = []
+    beneficiaries = {}
 
     # allocate surplus
     for ballot in ballots:
         if winner.eid == ballot['data'][0] and '-' != ballot['data'][1]:
-            beneficiaries.append(ballot['data'][1])
             allocation = surplus/t_prime_value
-            # this is still a bit 'magic' to me. would like to
-            # have a way to tally beneficiary gains to demonstrate
-            # that they equal the surplus -pk
             ballot['value'] = ballot['value'] * allocation
+            bene = ballot['data'][1]
+            if bene in beneficiaries:
+                beneficiaries[bene] += ballot['value'] 
+            else:
+                beneficiaries[bene] = ballot['value'] 
 
-    log['beneficiaries'] = ', '.join(beneficiaries)
+    log['beneficiaries'] = sorted(beneficiaries.items(),key=itemgetter(1),reverse=True)
     log['allocation'] = allocation
 
     #remove winner from ballots
