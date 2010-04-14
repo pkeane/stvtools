@@ -197,7 +197,7 @@ def get_winner(candidates,log):
         for cand in candidates_sorted_by_points:
             if highest_score == cand.points:
                 tied_candidates.append(cand)
-        (winner,log) = break_most_points_tie(tied_candidates,log,0)
+        (winner,log) = break_most_points_tie(tied_candidates,candidates,log,0)
     else:
         #clear winner
         winner = candidates_sorted_by_points[0]
@@ -213,7 +213,7 @@ def get_loser(candidates,log):
         for cand in candidates_sorted_by_points:
             if lowest_score == cand.points:
                 tied_candidates.append(cand)
-        (loser,log) = break_lowest_points_tie(tied_candidates,log,0)
+        (loser,log) = break_lowest_points_tie(tied_candidates,candidates,log,0)
     else:
         #clear loser 
         loser = candidates_sorted_by_points[0]
@@ -267,42 +267,42 @@ def purge_ballots_of_eid(ballots,eid):
             ballot['data'].append('-')
     return ballots
 
-def break_most_points_tie(candidates,log,run_count):
+def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
     """
-    log['tie_breaks'] += ' tie between: '+', '.join(c.eid for c in candidates)
+    log['tie_breaks'] += ' tie between: '+', '.join(c.eid for c in tied_candidates)
 
     # per schwartz p. 7, we only need to check historical
     # steps through step k (current) - 1 (e.g., first round go
     # straight random. run_count is zero indexed, so we add 1
     if log['step_count'] == run_count+1:
-        r = randint(0,len(candidates)-1)
-        return (candidates[r],log)
+        r = randint(0,len(tied_candidates)-1)
+        return (tied_candidates[r],log)
 
     historical_step_points = {}
     # create eid->points dictionary for [run_count] historical step
-    for c in candidates:
+    for c in tied_candidates:
         historical_step_points[c.eid] = c.step_points[run_count]
     #sorted tuples are (eid,score) pairs
-    sorted_tuples = sorted(candidates.items(), key=itemgetter(1), reverse=True)
+    sorted_tuples = sorted(historical_step_points.items(), key=itemgetter(1), reverse=True)
     if sorted_tuples[0][1] > sorted_tuples[1][1]:
         # clear winner
-        return (candidates[sorted_tuples[0][0]],log)
+        return (all_candidates[sorted_tuples[0][0]],log)
     else:
         #we have a tie
-        tied_candidates = []
+        new_tied_candidates = []
         highest_score = sorted_tuples[0][1]
-        for cand in sorted_tuples:
-            if highest_score == cand[1]:
+        for cand_tup in sorted_tuples:
+            if highest_score == cand_tup[1]:
                 #append as candidate object
-                tied_candidates.append(candidates[cand.eid])
+                new_tied_candidates.append(all_candidates[cand_tup[0]])
         # recursion
-        return break_most_points_tie(tied_candidates,log,run_count+1)
+        return break_most_points_tie(new_tied_candidates,all_candidates,log,run_count+1)
 
-def break_lowest_points_tie(candidates,log,run_count):
+def break_lowest_points_tie(tied_candidates,all_candidates,log,run_count):
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
     """
-    log['tie_breaks'] += ' tie between: '+', '.join(c.eid for c in candidates)
+    log['tie_breaks'] += ' tie between: '+', '.join(c.eid for c in tied_candidates)
 
     # per schwartz p. 7, we only need to check historical
     # steps through step k (current) - 1 (e.g., first round go
@@ -310,28 +310,28 @@ def break_lowest_points_tie(candidates,log,run_count):
 
     #TODO schwartz bottom of page 7 (although it'll never happen)
     if log['step_count'] == run_count+1:
-        r = randint(0,len(candidates)-1)
-        return (candidates[r],log)
+        r = randint(0,len(tied_candidates)-1)
+        return (tied_candidates[r],log)
 
     historical_step_points = {}
     # create eid->points dictionary for [run_count] historical step
-    for c in candidates:
+    for c in tied_candidates:
         historical_step_points[c.eid] = c.step_points[run_count]
     #sorted tuples are (eid,score) pairs
-    sorted_tuples = sorted(candidates.items(), key=itemgetter(1))
+    sorted_tuples = sorted(historical_step_points.items(), key=itemgetter(1))
     if sorted_tuples[0][1] < sorted_tuples[1][1]:
         # clear lowest 
-        return (candidates[sorted_tuples[0][0]],log)
+        return (all_candidates[sorted_tuples[0][0]],log)
     else:
         #we have a tie
-        tied_candidates = []
+        new_tied_candidates = []
         lowest_score = sorted_tuples[0][1]
         for cand in sorted_tuples:
             if lowest_score == cand[1]:
                 #append as candidate object
-                tied_candidates.append(candidates[cand.eid])
+                new_tied_candidates.append(all_candidates[cand[0]])
         # recursion
-        return break_lowest_points_tie(tied_candidates,log,run_count+1)
+        return break_lowest_points_tie(new_tied_candidates,all_candidates,log,run_count+1)
 
 def get_committee_counts(committee):
     full = 0
