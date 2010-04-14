@@ -308,7 +308,7 @@ def break_lowest_points_tie(tied_candidates,all_candidates,log,run_count):
     # steps through step k (current) - 1 (e.g., first round go
     # straight random. run_count is zero indexed, so we add 1
 
-    #TODO schwartz bottom of page 7 (although it'll never happen)
+    #TODO schwartz bottom of page 7 
     if log['step_count'] == run_count+1:
         r = randint(0,len(tied_candidates)-1)
         return (tied_candidates[r],log)
