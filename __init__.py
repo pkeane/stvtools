@@ -319,6 +319,7 @@ def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,de
         return (tied_candidates[r],log)
     else:
         log['tie_breaks'].append('** considering points at preference number '+str(depth+1))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
     tallies = {}
 
