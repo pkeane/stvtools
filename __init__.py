@@ -339,7 +339,7 @@ def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,de
     if 1 == len(tallies):
         #remove this person from list of tied
         for cand in tied_candidates:
-            if tallies.keys().pop() != cand.eid
+            if tallies.keys().pop() != cand.eid:
                 new_tied_candidates.append(cand)
         if 1 == len(new_tied_candidates):
             return (new_tied_candidates[0],log)
