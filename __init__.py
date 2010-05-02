@@ -334,8 +334,17 @@ def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,de
         #recursion
         return second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,depth+1)
 
+    new_tied_candidates = []
+
     if 1 == len(tallies):
-        return (all_candidates[tallies.keys().pop()],log)
+        #remove this person from list of tied
+        for cand in tied_candidates:
+            if tallies.keys().pop() != cand.eid
+                new_tied_candidates.append(cand)
+        if 1 == len(new_tied_candidates):
+            return (new_tied_candidates[0],log)
+        else:
+            return second_preference_low_tiebreak(new_tied_candidates,all_candidates,ballots,log,depth+1)
 
     #create array of tuples (eid,tally) sorted by tally
     sorted_tuples = sorted(tallies.items(), key=itemgetter(1))
@@ -343,7 +352,6 @@ def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,de
         # clear loser 
         return (all_candidates[sorted_tuples[0][0]],log)
     else:
-        new_tied_candidates = []
         common_low_score = sorted_tuples[0][1]
         for eid in tallies:
             if tallies[eid] == common_low_score:
