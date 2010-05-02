@@ -1,5 +1,6 @@
 from operator import itemgetter, attrgetter
 from random import randint
+import copy
 import sys
 
 from time import time
@@ -11,7 +12,7 @@ data definitions:
 
     ballot -- a dictionary with two elements:
         'value': float indicating current value of the ballot
-        'data': ordered list of candidates
+        'data': ordered list of candidate eids
     ballots -- an array of ballots
 
     candidate -- an object with five attributes:
@@ -91,9 +92,16 @@ def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     log['step_count'] = step_count+1
     log['ballot_table'] = ballots_to_table(ballots)
     ballot_tally = get_ballot_tally(ballots) 
+    no_votes = []
+    for eid in candidates:
+        if eid not in ballot_tally:
+            no_votes.append(eid)
+
+    no_votes.sort()
+    log['no_votes'] = no_votes 
     log['ballot_tally'] = sorted(ballot_tally.items(),key=itemgetter(1),reverse=True)
     log['droop'] = droop
-    log['tie_breaks'] = ''
+    log['tie_breaks'] = [] 
     # exit condition
     if len(committee) == seats: 
         return (ballots,candidates,committee,logs)
@@ -161,12 +169,12 @@ def elect_or_eliminate_one(candidates,ballots,committee,config,droop,log):
             (ballots,log) = allocate_surplus(ballots,winner,droop,log)
             committee.append(winner)
             surplus = winner.points - droop
-            log['report'] = "added "+winner.name+" to committee and distributed surplus of " + str(surplus)
+            log['report'] = "added "+winner.name+" ("+winner.eid+") to committee and distributed surplus of " + str(surplus)
             del candidates[winner.eid]
         else:
             #nobody has at least droop
-            (loser,log) = get_loser(candidates,log)
-            log['report'] = "removed "+loser.name+" from ballot"
+            (loser,log) = get_loser(candidates,ballots,log)
+            log['report'] = "removed "+loser.name+' ('+loser.eid+") from ballot"
             del candidates[loser.eid]
             ballots = purge_ballots_of_eid(ballots,loser.eid)
     (committee,log) = autofill_committee(candidates,ballots,committee,config,log)
@@ -203,7 +211,7 @@ def get_winner(candidates,log):
         winner = candidates_sorted_by_points[0]
     return (winner,log) 
 
-def get_loser(candidates,log):
+def get_loser(candidates,ballots,log):
     candidates_sorted_by_points = sorted(candidates.values(),
                                          key=attrgetter('points'))
     if len(candidates) > 1 and candidates_sorted_by_points[0].points == candidates_sorted_by_points[1].points:
@@ -213,7 +221,7 @@ def get_loser(candidates,log):
         for cand in candidates_sorted_by_points:
             if lowest_score == cand.points:
                 tied_candidates.append(cand)
-        (loser,log) = break_lowest_points_tie(tied_candidates,candidates,log,0)
+        (loser,log) = break_lowest_points_tie(tied_candidates,candidates,ballots,log,0)
     else:
         #clear loser 
         loser = candidates_sorted_by_points[0]
@@ -270,13 +278,18 @@ def purge_ballots_of_eid(ballots,eid):
 def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
     """
-    log['tie_breaks'] += ' tie between: '+', '.join(c.eid for c in tied_candidates)
+    if run_count:
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
+    else:
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
+
 
     # per schwartz p. 7, we only need to check historical
     # steps through step k (current) - 1 (e.g., first round go
     # straight random. run_count is zero indexed, so we add 1
     if log['step_count'] == run_count+1:
         r = randint(0,len(tied_candidates)-1)
+        log['tie_breaks'].append('*** coin toss ***')
         return (tied_candidates[r],log)
 
     historical_step_points = {}
@@ -299,19 +312,79 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
         # recursion
         return break_most_points_tie(new_tied_candidates,all_candidates,log,run_count+1)
 
-def break_lowest_points_tie(tied_candidates,all_candidates,log,run_count):
+def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,depth=1):
+    if depth == len(ballots[0]['data']):
+        r = randint(0,len(tied_candidates)-1)
+        log['tie_breaks'].append('**** coin toss ****')
+        return (tied_candidates[r],log)
+    else:
+        log['tie_breaks'].append('** considering points at preference number '+str(depth+1))
+
+    tallies = {}
+
+    for ballot in ballots:
+        for cand in tied_candidates:
+            if cand.eid == ballot['data'][depth]:
+                if cand.eid in tallies:
+                    tallies[cand.eid] += 1
+                else:
+                    tallies[cand.eid] = 1
+
+    if 0 == len(tallies):
+        #recursion
+        return second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,depth+1)
+
+    if 1 == len(tallies):
+        return (all_candidates[tallies.keys().pop()],log)
+
+    #create array of tuples (eid,tally) sorted by tally
+    sorted_tuples = sorted(tallies.items(), key=itemgetter(1))
+    if sorted_tuples[0][1] < sorted_tuples[1][1]:
+        # clear loser 
+        return (all_candidates[sorted_tuples[0][0]],log)
+    else:
+        new_tied_candidates = []
+        common_low_score = sorted_tuples[0][1]
+        for eid in tallies:
+            if tallies[eid] == common_low_score:
+                new_tied_candidates.append(all_candidates[eid])
+        #recursion
+        return second_preference_low_tiebreak(new_tied_candidates,all_candidates,ballots,log,depth+1)
+
+def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count):
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
     """
-    log['tie_breaks'] += ' tie between: '+', '.join(c.eid for c in tied_candidates)
+    if run_count:
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
+    else:
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
     # per schwartz p. 7, we only need to check historical
     # steps through step k (current) - 1 (e.g., first round go
     # straight random. run_count is zero indexed, so we add 1
-
-    #TODO schwartz bottom of page 7 
     if log['step_count'] == run_count+1:
-        r = randint(0,len(tied_candidates)-1)
-        return (tied_candidates[r],log)
+        # for lowest, if points = 0, no further processing is necessary
+        if  0 == tied_candidates[0].points:
+            r = randint(0,len(tied_candidates)-1)
+            log['tie_breaks'].append('*** coin toss ***')
+            return (tied_candidates[r],log)
+        else:
+            """
+            "...we examine the ballots (at step k) on which the surviving
+            tied candidates are ranked first and select those tied candidates
+            with the lowest second-preference vote total in this subset of
+            ballots, then those among the latter candidates with the lowest
+            third-preference total, etc.  Only then do we break any remaining
+            tie randomly."
+            """
+            considered_ballots = []
+            tied_eids = []
+            for cand in tied_candidates:
+                tied_eids.append(cand.eid)
+            for ballot in ballots:
+                if ballot['data'][0] in tied_eids:
+                    considered_ballots.append(ballot)
+            return second_preference_low_tiebreak(tied_candidates,all_candidates,considered_ballots,log)
 
     historical_step_points = {}
     # create eid->points dictionary for [run_count] historical step
@@ -331,7 +404,7 @@ def break_lowest_points_tie(tied_candidates,all_candidates,log,run_count):
                 #append as candidate object
                 new_tied_candidates.append(all_candidates[cand[0]])
         # recursion
-        return break_lowest_points_tie(new_tied_candidates,all_candidates,log,run_count+1)
+        return break_lowest_points_tie(new_tied_candidates,all_candidates,ballots,log,run_count+1)
 
 def get_committee_counts(committee):
     full = 0
