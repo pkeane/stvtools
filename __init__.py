@@ -246,10 +246,14 @@ def allocate_surplus(ballots,winner,droop,log):
 
     beneficiaries = {}
 
+    if t_prime_value and surplus:
+        allocation = surplus/t_prime_value
+    else:
+        allocation = 0
+
     # allocate surplus
     for ballot in ballots:
         if winner.eid == ballot['data'][0] and '-' != ballot['data'][1]:
-            allocation = surplus/t_prime_value
             ballot['value'] = ballot['value'] * allocation
             bene = ballot['data'][1]
             if bene in beneficiaries:
