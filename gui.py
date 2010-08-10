@@ -128,7 +128,7 @@ class Application():
         self.run_button.pack(side=LEFT)
 
     def run_tally(self):
-        self.write('-- NEW TALLY SET '+rfc3339()+' --\n\n',True)
+        self.write('-- NEW TALLY SET '+rfc3339()+' ('+self.election['id']+' / '+self.election['seats']+' Seats) --\n\n',True)
         new_data = {} 
         for col in self.matrix:
             ballot = []
@@ -143,7 +143,7 @@ class Application():
                 if new_data[i][j] != self.ballots[i][j]:
                     self.write("on ballot "+str(i+1)+" place "+str(j+1)+" was \""+self.ballots[i][j]+"\" and is now \""+new_data[i][j]+"\"")
 
-        self.write('-- running '+str(self.iterations)+' iterations --');
+        self.write('\n-- running '+str(self.iterations)+' iterations --');
 
         was_elected = {}
         for i in range(self.iterations):
@@ -255,9 +255,10 @@ class Application():
         canvas.create_window(0, 0, anchor=NW, window=frame)
         frame.update_idletasks()
         canvas.config(scrollregion=canvas.bbox("all"))
-        self.write('selected file '+filename)
-        self.write(' ELECTION ID: '+self.election['id'])
-        self.write(' *** edit data in grid, then run tally')
+        #self.write('selected file '+filename)
+        self.write('Election ID: '+self.election['id'])
+        self.write('Number of Seats: '+self.election['seats'])
+        #self.write(' *** edit data in grid, then run tally')
 
 """
 functions for running an STV election
