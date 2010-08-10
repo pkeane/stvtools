@@ -247,7 +247,7 @@ class Application():
                     self.matrix[col] = {}
                     label1 = Label(frame, width=8, text='ballot '+str(col+1))
                     label1.grid(row=row, column=col,padx =0,pady=0) 
-                entry1 = Entry(frame, width=9,bd=0)
+                entry1 = Entry(frame, width=9,bd=1)
                 entry1.insert(0,ballots[col][row])
                 entry1.grid(row=row+1,column=col,pady=0,padx=0)
                 self.matrix[col][row] = entry1
