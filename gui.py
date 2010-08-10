@@ -201,6 +201,8 @@ class Application():
         return ballots
     
     def get_data_file(self):
+        self.clear()
+        self.write('processing file...')
         filename = askopenfilename(filetypes=[("JSON data", ".json"),("All files", "*")])
         fn = open(filename)
         json_data = fn.read()
