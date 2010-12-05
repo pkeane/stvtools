@@ -1,6 +1,7 @@
 from operator import itemgetter, attrgetter
 from random import randint,shuffle
 import copy
+import math
 import optparse
 import sys
 
@@ -84,9 +85,9 @@ def ballots_to_table(ballots):
         table.append(row)
     return table
 
-def tally_csv(data):
+def tally_csv(data,seats=4):
     CONFIG = {}
-    CONFIG['seats'] = 4 
+    CONFIG['seats'] = seats 
     CONFIG['minimum_full_professors'] = 4 
     CONFIG['initial_ballot_value'] = 100 
     ballots = [] 
@@ -137,7 +138,7 @@ def run_csv_tally(csv_file,seats=8,runs=100):
   data['CANDIDATES'] = cands 
   was_elected = {}
   for i in range(runs):
-      result = tally_csv(copy.deepcopy(data))
+      result = tally_csv(copy.deepcopy(data),seats)
       last = result.pop()
       for cand in last['committee']:
           if cand.eid in was_elected:
@@ -519,6 +520,8 @@ if __name__ == '__main__':
     p.add_option('--candidates','-c', default=10)
     p.add_option('--voters','-v', default=30)
     p.add_option('--seats','-s', default=6)
+    #tally is number of runs
+    p.add_option('--tally','-t', default=0)
     p.add_option('--output','-o', dest="output", default="out.csv")
     p.add_option('--input','-i', dest="input", default="out.csv")
     p.add_option('--droop','-d', action="store_true", dest="droop")
@@ -529,13 +532,17 @@ if __name__ == '__main__':
         print "droop is "+str(droop)
 
     if data.nogen:
-        #fh = open(data.input)
-        #mydata = fh.readlines()
-        #view_ties(mydata)
-        sys.exit()
+      tally_file = data.input
+    else:
+      generate_ballot_set(data.candidates,data.voters,data.output)
+      tally_file = data.output
+      print "created file "+data.output
 
-    generate_ballot_set(data.candidates,data.voters,data.output)
-    print "created file "+data.output
+    if data.tally:
+      runs = int(data.tally)
+      seats = int(data.seats)
+      print run_csv_tally(tally_file,seats,runs=runs)
+
 
 
 
