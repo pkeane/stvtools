@@ -1,6 +1,7 @@
 from operator import itemgetter, attrgetter
 from random import randint,shuffle
 import copy
+import optparse
 import sys
 
 from time import time
