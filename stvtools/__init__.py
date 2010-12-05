@@ -1,5 +1,5 @@
 from operator import itemgetter, attrgetter
-from random import randint
+from random import randint,shuffle
 import copy
 import sys
 
@@ -82,6 +82,72 @@ def ballots_to_table(ballots):
                 row.append(ballot['data'][i])
         table.append(row)
     return table
+
+def tally_csv(data):
+    CONFIG = {}
+    CONFIG['seats'] = 4 
+    CONFIG['minimum_full_professors'] = 4 
+    CONFIG['initial_ballot_value'] = 100 
+    ballots = [] 
+    for py_ballot in data['BALLOTS']: 
+        b = {}
+        b['data'] = py_ballot 
+        b['value'] = CONFIG['initial_ballot_value']
+        ballots.append(b)
+    ballots = even_ballot_length(ballots)
+    candidates = {} 
+    for cand in data['CANDIDATES']: 
+        full = True
+        c = StvCandidate( cand, cand,full,[],0)
+        candidates[cand] = c
+    droop = calculate_droop(len(ballots),CONFIG['seats'],CONFIG['initial_ballot_value'])
+    logs = [] 
+    committee = []
+    (ballots,candidates,committee,logs) = run_step(ballots,candidates,committee,CONFIG,droop,logs)
+    return logs
+
+def run_csv_tally(csv_file,seats=8,runs=100):
+  """ This is a convenience function that runs multiple tallies over a 
+  csv data set.  The csv should have lines of equal length.  Ballots
+  are columns, rows are "places" (first row is first place on each
+  ballot). Empty cells are OK, but columns are assumed to be continuous.
+  cell values represent EID and Name (no distinction).  
+  """
+  csv_data = open(csv_file).readlines()
+  data = {}
+  ballots = {}
+  cand_dict = {}
+  place = 0
+  for ln in csv_data:
+      place += 1
+      ln = ln.strip()
+      ballot_num = 0
+      for cell in ln.split(','):
+          ballot_num += 1
+          if not ballots.has_key(ballot_num):
+              ballots[ballot_num] = []
+          if cell:
+              cand_dict[cell] = 1
+              ballots[ballot_num].append(cell)
+      
+  cands = cand_dict.keys()
+  cands.sort()
+  data['BALLOTS'] = ballots.values()
+  data['CANDIDATES'] = cands 
+  was_elected = {}
+  for i in range(runs):
+      result = tally_csv(copy.deepcopy(data))
+      last = result.pop()
+      for cand in last['committee']:
+          if cand.eid in was_elected:
+              was_elected[cand.eid] += 1
+          else:
+              was_elected[cand.eid] = 1
+  sorted_elected = sorted(was_elected.items(),key=itemgetter(1),reverse=True)
+  out = ''
+  for tup in sorted_elected:
+      out += tup[0]+' ('+ str(tup[1])+')\n'
+  return out
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     """ This is the "master" function.  It can be called once, and will recurse
@@ -429,7 +495,46 @@ def get_committee_counts(committee):
             non_full = non_full + 1
     return (full,non_full) 
 
+def generate_ballot_set(cands=30,voters=60,output_file='out.csv'):
+    fh = open(output_file,"w")
+    ballots = []
+    for v in range(0,int(voters)):
+        list = []
+        for c in range(1,int(cands)+1):
+            list.append('c'+str(c))
+        shuffle(list)
+        ballots.append(list) 
+    ballots = sorted(ballots, key=itemgetter(0))
+    for place in range(0,int(cands)):
+        set = []
+        for bal in ballots:
+            if bal[place]:
+                set.append(bal[place])
+        line = ','.join(set)
+        fh.write(line+"\n") 
 
+if __name__ == '__main__':
+    p = optparse.OptionParser()
+    p.add_option('--candidates','-c', default=10)
+    p.add_option('--voters','-v', default=30)
+    p.add_option('--seats','-s', default=6)
+    p.add_option('--output','-o', dest="output", default="out.csv")
+    p.add_option('--input','-i', dest="input", default="out.csv")
+    p.add_option('--droop','-d', action="store_true", dest="droop")
+    p.add_option('--nogen','-n', action="store_true", dest="nogen")
+    data, args = p.parse_args()
+    if data.droop:
+        droop = int(math.floor(float(data.voters)/(float(data.seats)+1))) + 1
+        print "droop is "+str(droop)
+
+    if data.nogen:
+        #fh = open(data.input)
+        #mydata = fh.readlines()
+        #view_ties(mydata)
+        sys.exit()
+
+    generate_ballot_set(data.candidates,data.voters,data.output)
+    print "created file "+data.output
 
 
 
