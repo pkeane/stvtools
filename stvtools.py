@@ -115,26 +115,10 @@ def run_csv_tally(csv_file,seats=8,runs=100):
   ballot). Empty cells are OK, but columns are assumed to be continuous.
   cell values represent EID and Name (no distinction).  
   """
-  csv_data = open(csv_file).readlines()
+  csv_data = file2table(csv_file)
+  cands = get_candidates(csv_data) 
   data = {}
-  ballots = {}
-  cand_dict = {}
-  place = 0
-  for ln in csv_data:
-      place += 1
-      ln = ln.strip()
-      ballot_num = 0
-      for cell in ln.split(','):
-          ballot_num += 1
-          if not ballots.has_key(ballot_num):
-              ballots[ballot_num] = []
-          if cell:
-              cand_dict[cell] = 1
-              ballots[ballot_num].append(cell)
-      
-  cands = cand_dict.keys()
-  cands.sort()
-  data['BALLOTS'] = ballots.values()
+  data['BALLOTS'] = swap(csv_data) 
   data['CANDIDATES'] = cands 
   was_elected = {}
   for i in range(runs):
@@ -496,53 +480,105 @@ def get_committee_counts(committee):
         else:
             non_full = non_full + 1
     return (full,non_full) 
+#functions used to create ties
 
-def generate_ballot_set(cands=30,voters=60,output_file='out.csv'):
-    fh = open(output_file,"w")
-    ballots = []
-    for v in range(0,int(voters)):
-        list = []
-        for c in range(1,int(cands)+1):
-            list.append('c'+str(c))
-        shuffle(list)
-        ballots.append(list) 
-    ballots = sorted(ballots, key=itemgetter(0))
-    for place in range(0,int(cands)):
-        set = []
-        for bal in ballots:
-            if bal[place]:
-                set.append(bal[place])
-        line = ','.join(set)
-        fh.write(line+"\n") 
+def file2table(filename):
+    fh = open(filename)
+    table = []
+    for ln in fh.readlines():
+        row = []
+        ln = ln.strip()
+        for cell in ln.split(','):
+            row.append(cell)
+        table.append(row)
+    return table
+
+def swap(data):
+    """
+    swaps rows and columns always returns table 
+    """
+    table = []
+    max_row_length = sorted([len(row) for row in data],reverse=True)[0]
+    for i in range(max_row_length):
+        table.append([])
+    for row in data:
+        for i in range(max_row_length):
+            if i < len(row):
+                table[i].append(row[i])
+            else:
+                table[i].append('')
+    return table
+    
+def view_ties(data):
+    """ for testing """
+    first = data[0].strip('\n').split(',')
+    cands = {}
+    for cand in first:
+        if not cands.has_key(cand):
+            cands[cand] = 0
+        cands[cand] += 1
+    print cands
+
+def put_first(list,cellval):
+  list.remove(cellval)
+  newlist = [cellval]
+  newlist.extend(list)
+  return newlist
+
+def get_droop(data,seats):
+  """ this assume each ballot value is 1 """
+  return int(math.floor(float(len(data[0]))/(float(seats)+1))) + 1
+
+def get_possible_ties(data,seats):
+  votes = len(data[0])
+  droop = get_droop(data,seats)
+  most = seats-1
+  if droop*most > votes:
+    most = votes/droop 
+  return range(2,most+1)
+
+def get_candidates(data):
+  cands = {}
+  for row in data:
+    for cell in row:
+      cands[cell] = 1
+  cand_list = cands.keys()
+  cand_list.sort()
+  return cand_list
+
+def create_ties(data,seats,ties):
+  if ties not in get_possible_ties(data,seats):
+    raise Exception('creating '+str(ties)+' ties is not possible')
+  droop = get_droop(data,seats)
+  votes_per_tie = len(data[0])/ties
+  cand_list= get_candidates(data)
+  tied_cands = cand_list[0:ties]
+  swapped_data = swap(data)
+  counter = 0
+  for cand in tied_cands:
+    for i in range(votes_per_tie):
+      ballot = swapped_data[counter]
+      swapped_data[counter] = put_first(ballot,cand)
+      counter += 1
+  return swap(swapped_data)
 
 if __name__ == '__main__':
     p = optparse.OptionParser()
-    p.add_option('--candidates','-c', default=10)
-    p.add_option('--voters','-v', default=30)
-    p.add_option('--seats','-s', default=6)
-    #tally is number of runs
-    p.add_option('--tally','-t', default=0)
-    p.add_option('--output','-o', dest="output", default="out.csv")
+    p.add_option('--seats','-s', default=10)
+    p.add_option('--runs','-r', default=10)
     p.add_option('--input','-i', dest="input", default="out.csv")
-    p.add_option('--droop','-d', action="store_true", dest="droop")
-    p.add_option('--nogen','-n', action="store_true", dest="nogen")
     data, args = p.parse_args()
-    if data.droop:
-        droop = int(math.floor(float(data.voters)/(float(data.seats)+1))) + 1
-        print "droop is "+str(droop)
+    csv_data = file2table(data.input)
+    cands = len(get_candidates(csv_data))
+    voters = len(csv_data[0])
+    droop = (voters/(data.seats+1))+1
+    print str(cands)+" candidates"
+    print str(voters)+" voters"
+    print str(data.seats)+" seats"
+    print "droop is "+str(droop)
 
-    if data.nogen:
-      tally_file = data.input
-    else:
-      generate_ballot_set(data.candidates,data.voters,data.output)
-      tally_file = data.output
-      print "created file "+data.output
-
-    if data.tally:
-      runs = int(data.tally)
+    if data.runs:
+      runs = int(data.runs)
       seats = int(data.seats)
-      print run_csv_tally(tally_file,seats,runs=runs)
-
-
-
-
+      print "\nresults:"
+      print run_csv_tally(data.input,seats,runs=runs)
