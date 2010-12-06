@@ -3,6 +3,7 @@ from random import randint,shuffle
 import copy
 import math
 import optparse
+import os
 import sys
 
 from time import time
@@ -85,10 +86,10 @@ def ballots_to_table(ballots):
         table.append(row)
     return table
 
-def tally_csv(data,seats=4):
+def tally_csv(data,seats):
     CONFIG = {}
     CONFIG['seats'] = seats 
-    CONFIG['minimum_full_professors'] = 4 
+    CONFIG['minimum_full_professors'] = 0 
     CONFIG['initial_ballot_value'] = 100 
     ballots = [] 
     for py_ballot in data['BALLOTS']: 
@@ -108,7 +109,7 @@ def tally_csv(data,seats=4):
     (ballots,candidates,committee,logs) = run_step(ballots,candidates,committee,CONFIG,droop,logs)
     return logs
 
-def run_csv_tally(csv_file,seats=8,runs=100):
+def run_csv_tally(csv_file,seats,runs):
   """ This is a convenience function that runs multiple tallies over a 
   csv data set.  The csv should have lines of equal length.  Ballots
   are columns, rows are "places" (first row is first place on each
@@ -480,7 +481,6 @@ def get_committee_counts(committee):
         else:
             non_full = non_full + 1
     return (full,non_full) 
-#functions used to create ties
 
 def file2table(filename):
     fh = open(filename)
@@ -509,34 +509,6 @@ def swap(data):
                 table[i].append('')
     return table
     
-def view_ties(data):
-    """ for testing """
-    first = data[0].strip('\n').split(',')
-    cands = {}
-    for cand in first:
-        if not cands.has_key(cand):
-            cands[cand] = 0
-        cands[cand] += 1
-    print cands
-
-def put_first(list,cellval):
-  list.remove(cellval)
-  newlist = [cellval]
-  newlist.extend(list)
-  return newlist
-
-def get_droop(data,seats):
-  """ this assume each ballot value is 1 """
-  return int(math.floor(float(len(data[0]))/(float(seats)+1))) + 1
-
-def get_possible_ties(data,seats):
-  votes = len(data[0])
-  droop = get_droop(data,seats)
-  most = seats-1
-  if droop*most > votes:
-    most = votes/droop 
-  return range(2,most+1)
-
 def get_candidates(data):
   cands = {}
   for row in data:
@@ -546,21 +518,17 @@ def get_candidates(data):
   cand_list.sort()
   return cand_list
 
-def create_ties(data,seats,ties):
-  if ties not in get_possible_ties(data,seats):
-    raise Exception('creating '+str(ties)+' ties is not possible')
-  droop = get_droop(data,seats)
-  votes_per_tie = len(data[0])/ties
-  cand_list= get_candidates(data)
-  tied_cands = cand_list[0:ties]
-  swapped_data = swap(data)
-  counter = 0
-  for cand in tied_cands:
-    for i in range(votes_per_tie):
-      ballot = swapped_data[counter]
-      swapped_data[counter] = put_first(ballot,cand)
-      counter += 1
-  return swap(swapped_data)
+def view_ties(data):
+    cands = {}
+    out = ''
+    for cand in data[0]:
+        if not cands.has_key(cand):
+            cands[cand] = 0
+        cands[cand] += 1
+    for c in cands:
+      if cands[c] > 1:
+        out += c+" has "+str(cands[c])+" first place votes\n"
+    return out
 
 if __name__ == '__main__':
     p = optparse.OptionParser()
@@ -568,17 +536,27 @@ if __name__ == '__main__':
     p.add_option('--runs','-r', default=10)
     p.add_option('--input','-i', dest="input", default="out.csv")
     data, args = p.parse_args()
+    if not os.path.exists(data.input):
+      print "please indicate a CSV input file: -i <myfile.csv>"
+      sys.exit()
     csv_data = file2table(data.input)
     cands = len(get_candidates(csv_data))
     voters = len(csv_data[0])
     droop = (voters/(data.seats+1))+1
+
+    print 'reading file "'+data.input+'"'
     print str(cands)+" candidates"
     print str(voters)+" voters"
     print str(data.seats)+" seats"
-    print "droop is "+str(droop)
 
-    if data.runs:
-      runs = int(data.runs)
-      seats = int(data.seats)
-      print "\nresults:"
-      print run_csv_tally(data.input,seats,runs=runs)
+    if int(data.seats) > cands:
+      print "ERROR: more seats than candidates"
+      sys.exit()
+
+    print "droop is "+str(droop)
+    print view_ties(csv_data)
+
+    runs = int(data.runs)
+    seats = int(data.seats)
+    print "\nresults:"
+    print run_csv_tally(data.input,seats,runs=runs)
