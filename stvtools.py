@@ -542,7 +542,7 @@ if __name__ == '__main__':
     csv_data = file2table(data.input)
     cands = len(get_candidates(csv_data))
     voters = len(csv_data[0])
-    droop = (voters/(data.seats+1))+1
+    droop = (voters/(int(data.seats)+1))+1
 
     print 'reading file "'+data.input+'"'
     print str(cands)+" candidates"
