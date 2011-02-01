@@ -42,7 +42,7 @@ def tally(json_data):
     return logs
 
 if __name__=="__main__":
-    data = open('sample_ballots.json').read()
+    data = open('2010.json').read()
     was_elected = {}
     for i in range(1000):
         result = tally(data)
