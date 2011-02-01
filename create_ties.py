@@ -37,7 +37,7 @@ def view_ties(data):
     cands = {}
     out = ''
     for cand in data[0]:
-        if not cands.has_key(cand):
+        if cand not in cands:
             cands[cand] = 0
         cands[cand] += 1
     for c in cands:
@@ -56,23 +56,22 @@ def get_possible_ties(data,seats):
   droop = (votes/(seats+1))+1
   most = seats-1
   if droop*most > votes:
-    most = votes/droop 
-  return range(2,most+1)
+    most = int(votes//droop) 
+  return list(range(2,most+1))
 
 def get_candidates(data):
   cands = {}
   for row in data:
     for cell in row:
       cands[cell] = 1
-  cand_list = cands.keys()
+  cand_list = list(cands.keys())
   cand_list.sort()
   return cand_list
 
 def create_ties(data,seats,ties):
   if ties not in get_possible_ties(data,seats):
     raise Exception('creating '+str(ties)+' ties is not possible')
-  droop = (len(data[0])/(seats+1))+1
-  votes_per_tie = len(data[0])/ties
+  votes_per_tie = int(len(data[0])//ties)
   cand_list= get_candidates(data)
   tied_cands = cand_list[0:ties]
   swapped_data = swap(data)
@@ -92,20 +91,19 @@ if __name__ == '__main__':
     p.add_option('--output','-o', dest="output")
     data, args = p.parse_args()
     if not os.path.exists(data.input):
-      print "please indicate a CSV input file: -i <myfile.csv>"
+      print("please indicate a CSV input file: -i <myfile.csv>")
       sys.exit()
 
     csv_data = file2table(data.input)
     cands = len(get_candidates(csv_data))
     voters = len(csv_data[0])
-    droop = (voters/(int(data.seats)+1))+1
 
-    print "using file "+str(data.input)+" as input"
+    print("using file "+str(data.input)+" as input")
 
     poss = get_possible_ties(csv_data,int(data.seats))
     if int(data.ties) not in poss:
-      print "Sorry, invalid number of ties ("+str(data.ties)+") given that the number of seats is "+str(data.seats) 
-      print "number must be between "+str(poss[0])+' and '+str(poss.pop())
+      print("Sorry, invalid number of ties ("+str(data.ties)+") given that the number of seats is "+str(data.seats)) 
+      print("number must be between "+str(poss[0])+' and '+str(poss.pop()))
       sys.exit()
     else:
       ties = int(data.ties)
@@ -119,4 +117,4 @@ if __name__ == '__main__':
       for row in tied_data:
         line = ','.join(row)
         fh.write(line+"\n") 
-      print "created file "+filename
+      print("created file "+filename)

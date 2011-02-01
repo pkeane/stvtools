@@ -31,4 +31,4 @@ if __name__ == '__main__':
     data, args = p.parse_args()
 
     generate_ballot_set(data.candidates,data.voters,data.output)
-    print "created file "+data.output
+    print("created file "+data.output)

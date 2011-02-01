@@ -130,7 +130,7 @@ def run_csv_tally(csv_file,seats,runs):
               was_elected[cand.eid] += 1
           else:
               was_elected[cand.eid] = 1
-  sorted_elected = sorted(was_elected.items(),key=itemgetter(1),reverse=True)
+  sorted_elected = sorted(list(was_elected.items()),key=itemgetter(1),reverse=True)
   out = ''
   for tup in sorted_elected:
       out += tup[0]+' ('+ str(tup[1])+')\n'
@@ -152,7 +152,7 @@ def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
 
     no_votes.sort()
     log['no_votes'] = no_votes 
-    log['ballot_tally'] = sorted(ballot_tally.items(),key=itemgetter(1),reverse=True)
+    log['ballot_tally'] = sorted(list(ballot_tally.items()),key=itemgetter(1),reverse=True)
     log['droop'] = droop
     log['tie_breaks'] = [] 
     # exit condition
@@ -249,7 +249,7 @@ def autofill_committee(candidates,ballots,committee,config,log):
     return (committee,log)
 
 def get_winner(candidates,log):
-    candidates_sorted_by_points = sorted(candidates.values(),
+    candidates_sorted_by_points = sorted(list(candidates.values()),
                                          key=attrgetter('points'), reverse=True)
     if len(candidates) > 1 and candidates_sorted_by_points[0].points == candidates_sorted_by_points[1].points:
         #we have a tie
@@ -265,7 +265,7 @@ def get_winner(candidates,log):
     return (winner,log) 
 
 def get_loser(candidates,ballots,log):
-    candidates_sorted_by_points = sorted(candidates.values(),
+    candidates_sorted_by_points = sorted(list(candidates.values()),
                                          key=attrgetter('points'))
     if len(candidates) > 1 and candidates_sorted_by_points[0].points == candidates_sorted_by_points[1].points:
         #we have a tie
@@ -314,7 +314,7 @@ def allocate_surplus(ballots,winner,droop,log):
             else:
                 beneficiaries[bene] = ballot['value'] 
 
-    log['beneficiaries'] = sorted(beneficiaries.items(),key=itemgetter(1),reverse=True)
+    log['beneficiaries'] = sorted(list(beneficiaries.items()),key=itemgetter(1),reverse=True)
     log['allocation'] = allocation
 
     #remove winner from ballots
@@ -354,7 +354,7 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     for c in tied_candidates:
         historical_step_points[c.eid] = c.step_points[run_count]
     #sorted tuples are (eid,score) pairs
-    sorted_tuples = sorted(historical_step_points.items(), key=itemgetter(1), reverse=True)
+    sorted_tuples = sorted(list(historical_step_points.items()), key=itemgetter(1), reverse=True)
     if sorted_tuples[0][1] > sorted_tuples[1][1]:
         # clear winner
         return (all_candidates[sorted_tuples[0][0]],log)
@@ -397,7 +397,7 @@ def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,de
     if 1 == len(tallies):
         #remove this person from list of tied
         for cand in tied_candidates:
-            if tallies.keys().pop() != cand.eid:
+            if list(tallies.keys()).pop() != cand.eid:
                 new_tied_candidates.append(cand)
         if 1 == len(new_tied_candidates):
             return (new_tied_candidates[0],log)
@@ -405,7 +405,7 @@ def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,de
             return second_preference_low_tiebreak(new_tied_candidates,all_candidates,ballots,log,depth+1)
 
     #create array of tuples (eid,tally) sorted by tally
-    sorted_tuples = sorted(tallies.items(), key=itemgetter(1))
+    sorted_tuples = sorted(list(tallies.items()), key=itemgetter(1))
     if sorted_tuples[0][1] < sorted_tuples[1][1]:
         # clear loser 
         return (all_candidates[sorted_tuples[0][0]],log)
@@ -457,7 +457,7 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
     for c in tied_candidates:
         historical_step_points[c.eid] = c.step_points[run_count]
     #sorted tuples are (eid,score) pairs
-    sorted_tuples = sorted(historical_step_points.items(), key=itemgetter(1))
+    sorted_tuples = sorted(list(historical_step_points.items()), key=itemgetter(1))
     if sorted_tuples[0][1] < sorted_tuples[1][1]:
         # clear lowest 
         return (all_candidates[sorted_tuples[0][0]],log)
@@ -514,7 +514,7 @@ def get_candidates(data):
   for row in data:
     for cell in row:
       cands[cell] = 1
-  cand_list = cands.keys()
+  cand_list = list(cands.keys())
   cand_list.sort()
   return cand_list
 
@@ -522,7 +522,7 @@ def view_ties(data):
     cands = {}
     out = ''
     for cand in data[0]:
-        if not cands.has_key(cand):
+        if cand not in cands:
             cands[cand] = 0
         cands[cand] += 1
     for c in cands:
@@ -537,26 +537,26 @@ if __name__ == '__main__':
     p.add_option('--input','-i', dest="input", default="out.csv")
     data, args = p.parse_args()
     if not os.path.exists(data.input):
-      print "please indicate a CSV input file: -i <myfile.csv>"
+      print("please indicate a CSV input file: -i <myfile.csv>")
       sys.exit()
     csv_data = file2table(data.input)
     cands = len(get_candidates(csv_data))
     voters = len(csv_data[0])
     droop = (voters/(int(data.seats)+1))+1
 
-    print 'reading file "'+data.input+'"'
-    print str(cands)+" candidates"
-    print str(voters)+" voters"
-    print str(data.seats)+" seats"
+    print('reading file "'+data.input+'"')
+    print(str(cands)+" candidates")
+    print(str(voters)+" voters")
+    print(str(data.seats)+" seats")
 
     if int(data.seats) > cands:
-      print "ERROR: more seats than candidates"
+      print("ERROR: more seats than candidates")
       sys.exit()
 
-    print "droop is "+str(droop)
-    print view_ties(csv_data)
+    print("droop is "+str(droop))
+    print(view_ties(csv_data))
 
     runs = int(data.runs)
     seats = int(data.seats)
-    print "\nresults:"
-    print run_csv_tally(data.input,seats,runs=runs)
+    print("\nresults:")
+    print(run_csv_tally(data.input,seats,runs=runs))
