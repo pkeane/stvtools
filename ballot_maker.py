@@ -26,7 +26,7 @@ def generate_ballot_set(cands,voters,output_file):
 if __name__ == '__main__':
     p = optparse.OptionParser()
     p.add_option('--candidates','-c', default=10)
-    p.add_option('--voters','-v', default=30)
+    p.add_option('--voters','-v', default=50)
     p.add_option('--output','-o', dest="output", default="out.csv")
     data, args = p.parse_args()
 

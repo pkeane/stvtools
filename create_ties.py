@@ -55,8 +55,10 @@ def get_possible_ties(data,seats):
   votes = len(data[0])
   droop = (votes/(seats+1))+1
   most = seats-1
+  #cand needs AT LEAST droop (#of votes to get elected) 
+  #as most grows, need to make sure tied cand has enough votes
   if droop*most > votes:
-    most = int(votes//droop) 
+    most = votes//droop 
   return list(range(2,most+1))
 
 def get_candidates(data):
