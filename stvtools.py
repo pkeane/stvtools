@@ -52,10 +52,8 @@ def calculate_droop(num_of_ballots,seats,initial_ballot_value):
     n.b. do not re-calculate droop after steps have begun
     Droop is determined by the original num of ballots.
     """
-    #compute
-    raw_droop = initial_ballot_value*num_of_ballots/(seats+1)
-    #round up to nearest integer
-    return int(round(raw_droop +.5))
+    droop = (initial_ballot_value*num_of_ballots//(seats+1))+1 # // means trunc
+    return droop
 
 def even_ballot_length(ballots):
     """ makes all ballots have the same length by appending
@@ -542,7 +540,7 @@ if __name__ == '__main__':
     csv_data = file2table(data.input)
     cands = len(get_candidates(csv_data))
     voters = len(csv_data[0])
-    droop = (voters/(int(data.seats)+1))+1
+    droop = calculate_droop(voters,data.seats,100)
 
     print('reading file "'+data.input+'"')
     print(str(cands)+" candidates")
