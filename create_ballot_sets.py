@@ -6,26 +6,22 @@ import os
 import stvtools
 import sys
 
-VOTERS = 50
-SEATS = [6,7,8,9,10,11,12,13,14,15]
-CANDS = [20,25,30,35,40,45]
-
 def generate_ballot_set(cands,voters,output_file):
     fh = open(output_file,"w")
     ballots = []
-    #for each voter
+    # for each voter
     for v in range(0,int(voters)):
         list = []
-        #make list of candidates
+        # make list of candidates
         for c in range(1,int(cands)+1):
             list.append('c'+str(c))
-        #shuffle
+        # shuffle
         shuffle(list)
-        #append this ballot to set of ballots
+        # append this ballot to set of ballots
         ballots.append(list) 
-    #sort ballots by first place vote
+    # sort ballots by first place vote
     ballots = sorted(ballots, key=itemgetter(0))
-    #from 0 to number_of_candidates (i.e. "places")
+    # from 0 to number_of_candidates (i.e. "places")
     # this is so we have each row being a "place"
     for place in range(0,int(cands)):
         set = []
@@ -34,7 +30,7 @@ def generate_ballot_set(cands,voters,output_file):
         for bal in ballots:
             if bal[place]:
                 set.append(bal[place])
-        #write out this "place"
+        # write out this "place"
         line = ','.join(set)
         fh.write(line+"\n") 
 
@@ -81,12 +77,23 @@ def check_ties(data,ties,filename):
     top = sorted_ties.pop()
     if top[1] != ties:
         print('PROBLEM!! '+str(top[1])+' TIES IN '+filename)
+    else:
+        pass
+        #print("OK. "+str(ties)+" ties")
 
 def put_first(list,cellval):
   list.remove(cellval)
   newlist = [cellval]
   newlist.extend(list)
   return newlist
+
+def put_first_and_second(list,pair):
+    (c1,c2) = pair 
+    list.remove(c1)
+    list.remove(c2)
+    newlist = [c1,c2]
+    newlist.extend(list)
+    return newlist
 
 def get_candidates(data):
   cands = {}
@@ -100,11 +107,13 @@ def get_candidates(data):
 def create_ties(data,seats,voters,ties):
     votes_per_tie = voters//ties
     cand_list= get_candidates(data)
+
+
     tied_cands = cand_list[0:ties]
-    #make each ballot a ROW instead of a COL
+    # make each ballot a ROW instead of a COL
     swapped_data = swap(data)
-    #counter is simply the ballot number that a particular
-    #cand tops.  It should go 0 to total_num_of_tied_ballots
+    # counter is simply the ballot number that a particular
+    # cand tops.  It should go 0 to total_num_of_tied_ballots
     counter = 0
     for cand in tied_cands:
         for i in range(votes_per_tie):
@@ -112,22 +121,81 @@ def create_ties(data,seats,voters,ties):
             swapped_data[counter] = put_first(ballot,cand)
             counter += 1
 
+    num_remaining_ballots = len(swapped_data) - counter
+
     # now fix remaining
     # under what circumstances can we get too many ties?
     # when there are enough remaining ballots to (by chance)
     # include another set of (votes_per_tie) ties
     if voters-(votes_per_tie*ties) >= votes_per_tie:
-        #print ("POTENTIAL PROBLEM. Counter is at "+str(counter))
-        #remaining candidates
+        # print ("POTENTIAL PROBLEM. Counter is at "+str(counter))
+        # remaining candidates
         remaining = cand_list[ties:-1]
         # cycle through remaining cands, putting each at the top of a remaining
         # ballot (votes_per_tie - 1) times until you run out of ballots
         for rc in remaining:
             for j in range(votes_per_tie-1):
+                # make sure we have ballots left to fix
                 if len(swapped_data) > counter:
                     ballot = swapped_data[counter]
                     swapped_data[counter] = put_first(ballot,rc)
                     counter += 1
+    
+    return swap(swapped_data)
+
+def create_2deep_ties(data,seats,voters,ties):
+    votes_per_tie = voters//ties
+    cand_list= get_candidates(data)
+
+    if len(cand_list) < 2*ties:
+        print("CANNOT do second place ties.  Not enough candidates ("+str(ties)+" ties, "+str(len(cand_list))+" candidates, "+str(seats)+" seats)")
+        return
+
+    tied_cands1 = cand_list[0:ties]
+    tied_cands2 = cand_list[ties:2*ties]
+    cand_pairs = [(tied_cands1[i],tied_cands2[i]) for i in range(len(tied_cands1))]
+
+    # make each ballot a ROW instead of a COL
+    swapped_data = swap(data)
+    # counter is simply the ballot number that a particular
+    # cand tops.  It should go 0 to total_num_of_tied_ballots
+    counter = 0
+    for cand_pair in cand_pairs:
+        for i in range(votes_per_tie):
+            ballot = swapped_data[counter]
+            swapped_data[counter] = put_first_and_second(ballot,cand_pair)
+            counter += 1
+
+    num_remaining_ballots = len(swapped_data) - counter
+
+
+    # 2-DEEP coordination check
+    # do we have enough candidates for 1st & 2nd place ties?
+    # do we have enough candidates to spread out over remaining ballots?
+    if len(cand_list)-2*ties < (num_remaining_ballots//votes_per_tie)*2:
+        print("CANNOT do second place ties.  Not enough candidates ("+str(ties)+" ties, "+str(len(cand_list))+" candidates, "+str(seats)+" seats)")
+        return
+    else:
+        print("OK! ("+str(ties)+" ties, "+str(len(cand_list))+" candidates, "+str(seats)+" seats)")
+
+    # now fix remaining
+    # for 2-deep we only need to worry about first place
+    # in remainder ballots, because in first two rounds, we will
+    # never see the second place in these remainder ballots
+    # but we MUST make sure none of the tied second-place cands
+    # appear as first in these remainder ballots
+
+    # remaining candidates
+    remaining = cand_list[2*ties:-1]
+    # cycle through remaining cands, putting each at the top of a remaining
+    # ballot (votes_per_tie - 1) times until you run out of ballots
+    for rc in remaining:
+        for j in range(votes_per_tie-1):
+            # make sure we have ballots left to fix
+            if len(swapped_data) > counter:
+                ballot = swapped_data[counter]
+                swapped_data[counter] = put_first(ballot,rc)
+                counter += 1
     
     return swap(swapped_data)
 
@@ -142,7 +210,25 @@ def file2tiedfile(filename,outdir,voters,cands,seats,ties):
     print("printed "+tied_filename)
     return tied_filename
 
+def file2tiedfile2deep(filename,outdir,voters,cands,seats,ties):
+    csv_data = file2table(filename)
+    tied_data = create_2deep_ties(csv_data,seats,voters,ties)
+    if not tied_data:
+        return
+    tied_filename = outdir+'/2deep_c'+str(cands)+'_s'+str(seats)+'_t'+str(ties)+'.csv'
+    fh = open(tied_filename,"w")
+    for row in tied_data:
+        line = ','.join(row)
+        fh.write(line+"\n") 
+    print("printed "+tied_filename)
+    return tied_filename
+
 if __name__ == '__main__':
+
+    VOTERS = 50
+    SEATS = [6,7,8,9,10,11,12,13,14,15]
+    CANDS = [20,25,30,35,40,45]
+
     print('creating ballot sets')
     print('fixed number of voters is 50')
     print('fixed number of seats is 6/7/8/9/10/11/12/13/14/15')
@@ -154,7 +240,16 @@ if __name__ == '__main__':
         output = OUTDIR+'/v50_c'+str(c)+'.csv'
         generate_ballot_set(c,VOTERS,output)
         print("created file "+output)
+
+        # note that I use the SAME ballot set for all of the SEATS/TIES variations
+        # should I be generating a new random ballot set for each?  Probably
+        # worth investigating
+
         for s in SEATS:
+            # the range of possible ties
             for t in range(2,s):
                 filename = file2tiedfile(output,OUTDIR,VOTERS,c,s,t)
+                # verify correct number of ties
                 check_ties(file2table(filename),t,filename)
+
+                filename = file2tiedfile2deep(output,OUTDIR,VOTERS,c,s,t)
