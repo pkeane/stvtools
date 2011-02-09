@@ -112,15 +112,22 @@ def create_ties(data,seats,voters,ties):
             swapped_data[counter] = put_first(ballot,cand)
             counter += 1
 
-    #now fix remaining
-    #under what circumstances can we get too many ties?
+    # now fix remaining
+    # under what circumstances can we get too many ties?
+    # when there are enough remaining ballots to (by chance)
+    # include another set of (votes_per_tie) ties
     if voters-(votes_per_tie*ties) >= votes_per_tie:
-        print "POTENTIAL PROBLEM. Counter is at "+str(counter)
-        print tied_cands
+        #print ("POTENTIAL PROBLEM. Counter is at "+str(counter))
+        #remaining candidates
         remaining = cand_list[ties:-1]
-        print remaining
-    # cycle through remaining cands, putting each at the top of a remaining
-    # ballot (votes_per_tie - 1) times until you run out of ballots
+        # cycle through remaining cands, putting each at the top of a remaining
+        # ballot (votes_per_tie - 1) times until you run out of ballots
+        for rc in remaining:
+            for j in range(votes_per_tie-1):
+                if len(swapped_data) > counter:
+                    ballot = swapped_data[counter]
+                    swapped_data[counter] = put_first(ballot,rc)
+                    counter += 1
     
     return swap(swapped_data)
 
