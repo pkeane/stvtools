@@ -97,22 +97,36 @@ def get_candidates(data):
   cand_list.sort()
   return cand_list
 
-def create_ties(data,seats,ties):
-  votes_per_tie = len(data[0])//ties
-  cand_list= get_candidates(data)
-  tied_cands = cand_list[0:ties]
-  swapped_data = swap(data)
-  counter = 0
-  for cand in tied_cands:
-    for i in range(votes_per_tie):
-      ballot = swapped_data[counter]
-      swapped_data[counter] = put_first(ballot,cand)
-      counter += 1
-  return swap(swapped_data)
+def create_ties(data,seats,voters,ties):
+    votes_per_tie = voters//ties
+    cand_list= get_candidates(data)
+    tied_cands = cand_list[0:ties]
+    #make each ballot a ROW instead of a COL
+    swapped_data = swap(data)
+    #counter is simply the ballot number that a particular
+    #cand tops.  It should go 0 to total_num_of_tied_ballots
+    counter = 0
+    for cand in tied_cands:
+        for i in range(votes_per_tie):
+            ballot = swapped_data[counter]
+            swapped_data[counter] = put_first(ballot,cand)
+            counter += 1
+
+    #now fix remaining
+    #under what circumstances can we get too many ties?
+    if voters-(votes_per_tie*ties) >= votes_per_tie:
+        print "POTENTIAL PROBLEM. Counter is at "+str(counter)
+        print tied_cands
+        remaining = cand_list[ties:-1]
+        print remaining
+    # cycle through remaining cands, putting each at the top of a remaining
+    # ballot (votes_per_tie - 1) times until you run out of ballots
+    
+    return swap(swapped_data)
 
 def file2tiedfile(filename,outdir,voters,cands,seats,ties):
     csv_data = file2table(filename)
-    tied_data = create_ties(csv_data,seats,ties)
+    tied_data = create_ties(csv_data,seats,voters,ties)
     tied_filename = outdir+'/c'+str(cands)+'_s'+str(seats)+'_t'+str(ties)+'.csv'
     fh = open(tied_filename,"w")
     for row in tied_data:
