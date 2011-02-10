@@ -177,7 +177,8 @@ def create_2deep_ties(data,seats,voters,ties):
         print("CANNOT do second place ties.  Not enough candidates ("+str(ties)+" ties, "+str(len(cand_list))+" candidates, "+str(seats)+" seats)")
         return
     else:
-        print("OK! ("+str(ties)+" ties, "+str(len(cand_list))+" candidates, "+str(seats)+" seats)")
+        pass
+        # print("OK! ("+str(ties)+" ties, "+str(len(cand_list))+" candidates, "+str(seats)+" seats)")
 
     # now fix remaining
     # for 2-deep we only need to worry about first place
@@ -207,7 +208,7 @@ def file2tiedfile(output,voters,cands,seats,ties):
     for row in tied_data:
         line = ','.join(row)
         fh.write(line+"\n") 
-    print("printed "+output)
+    # print("printed "+output)
 
 def file2tiedfile2deep(output,voters,cands,seats,ties):
     csv_data = file2table(output)
@@ -218,7 +219,7 @@ def file2tiedfile2deep(output,voters,cands,seats,ties):
     for row in tied_data:
         line = ','.join(row)
         fh.write(line+"\n") 
-    print("printed "+output)
+    # print("printed "+output)
 
 if __name__ == '__main__':
 
