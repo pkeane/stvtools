@@ -263,5 +263,5 @@ if __name__ == '__main__':
                     avg_time_per_file = elapsed_time/processed_files
                     remaining_time = avg_time_per_file * remaining_files
                     min_left = remaining_time/60
-                    print(str(remaining files)+' files left')
+                    print(str(remaining_files)+' files left')
                     print(str(min_left)+' minutes processing time left')
