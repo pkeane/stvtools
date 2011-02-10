@@ -72,6 +72,7 @@ if __name__ == '__main__':
             for pair in (list(itertools.combinations(list(range(len(data))),2))):
                 rhos.append(get_rho(data[pair[0]],data[pair[1]]))
             print(file,'{0:f}'.format(get_avg(rhos)))
+
             now = time.time()
             elapsed_time = now - start_time
             processed_files += 1
@@ -79,7 +80,6 @@ if __name__ == '__main__':
             avg_time_per_file = elapsed_time/processed_files
             remaining_time = avg_time_per_file * remaining_files
             hours_left = remaining_time/3600
-           
             print(str(hours_left)+' hours processing time left')
 
 

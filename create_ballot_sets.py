@@ -5,6 +5,7 @@ import math
 import os
 import stvtools
 import sys
+import time
 
 def generate_ballot_set(cands,voters,output_file):
     fh = open(output_file,"w")
@@ -230,8 +231,12 @@ if __name__ == '__main__':
     print('fixed number of seats is 6/7/8/9/10/11/12/13/14/15')
     print('fixed number of candidates is 20/25/30/35/40/45')
 
-    
-    
+    start_time = time.time()
+    processed_files = 0
+    # use 9 as avg ties
+    file_count = 100*len(CANDS)*len(SEATS)*9 
+    print(str(file_count)+' TOTAL files to process')
+
     for n in range(100):
         OUTDIR = 'ballots/'+str(n+1)
         if not os.path.exists(OUTDIR):
@@ -250,3 +255,12 @@ if __name__ == '__main__':
                     output = OUTDIR+'/2deep_c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_'+str(n)+'.csv'
                     generate_ballot_set(c,VOTERS,output)
                     file2tiedfile2deep(output,VOTERS,c,s,t)
+        
+                    now = time.time()
+                    elapsed_time = now - start_time
+                    processed_files += 1
+                    remaining_files = file_count - processed_files
+                    avg_time_per_file = elapsed_time/processed_files
+                    remaining_time = avg_time_per_file * remaining_files
+                    min_left = remaining_time/60
+                    print(str(min_left)+' hours processing time left')
