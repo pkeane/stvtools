@@ -51,17 +51,15 @@ def file2ballots(filename):
     return swap(file2table(filename))
 
 def get_avg(list):
-    total = 0
-    for n in list:
-        total += n
-    return n/len(list)
+    return sum(list)/len(list)
 
 if __name__ == '__main__':
     BASEDIR = 'ballots'
+    #BASEDIR = 'test'
     for file in os.listdir(BASEDIR):
         data = file2ballots(BASEDIR+'/'+file)
         rhos = []
         for pair in (list(itertools.combinations(list(range(len(data))),2))):
             rhos.append(get_rho(data[pair[0]],data[pair[1]]))
-        print (file, '{0:f}'.format(get_avg(rhos)))
+        print('{0:f}'.format(get_avg(rhos)),file)
 

@@ -199,29 +199,25 @@ def create_2deep_ties(data,seats,voters,ties):
     
     return swap(swapped_data)
 
-def file2tiedfile(filename,outdir,voters,cands,seats,ties):
-    csv_data = file2table(filename)
+def file2tiedfile(output,voters,cands,seats,ties):
+    csv_data = file2table(output)
     tied_data = create_ties(csv_data,seats,voters,ties)
-    tied_filename = outdir+'/c'+str(cands)+'_s'+str(seats)+'_t'+str(ties)+'.csv'
-    fh = open(tied_filename,"w")
+    fh = open(output,"w")
     for row in tied_data:
         line = ','.join(row)
         fh.write(line+"\n") 
-    print("printed "+tied_filename)
-    return tied_filename
+    print("printed "+output)
 
-def file2tiedfile2deep(filename,outdir,voters,cands,seats,ties):
-    csv_data = file2table(filename)
+def file2tiedfile2deep(output,voters,cands,seats,ties):
+    csv_data = file2table(output)
     tied_data = create_2deep_ties(csv_data,seats,voters,ties)
     if not tied_data:
         return
-    tied_filename = outdir+'/2deep_c'+str(cands)+'_s'+str(seats)+'_t'+str(ties)+'.csv'
-    fh = open(tied_filename,"w")
+    fh = open(output,"w")
     for row in tied_data:
         line = ','.join(row)
         fh.write(line+"\n") 
-    print("printed "+tied_filename)
-    return tied_filename
+    print("printed "+output)
 
 if __name__ == '__main__':
 
@@ -234,22 +230,23 @@ if __name__ == '__main__':
     print('fixed number of seats is 6/7/8/9/10/11/12/13/14/15')
     print('fixed number of candidates is 20/25/30/35/40/45')
 
-    OUTDIR = 'ballots'
-
-    for c in CANDS:
-        output = OUTDIR+'/v50_c'+str(c)+'.csv'
-        generate_ballot_set(c,VOTERS,output)
-        print("created file "+output)
-
-        # note that I use the SAME ballot set for all of the SEATS/TIES variations
-        # should I be generating a new random ballot set for each?  Probably
-        # worth investigating
-
-        for s in SEATS:
-            # the range of possible ties
-            for t in range(2,s):
-                filename = file2tiedfile(output,OUTDIR,VOTERS,c,s,t)
-                # verify correct number of ties
-                check_ties(file2table(filename),t,filename)
-
-                filename = file2tiedfile2deep(output,OUTDIR,VOTERS,c,s,t)
+    
+    
+    for n in range(100):
+        OUTDIR = 'ballots/'+str(n+1)
+        if not os.path.exists(OUTDIR):
+            os.makedirs(OUTDIR)
+        for c in CANDS:
+            for s in SEATS:
+                # the range of possible ties
+                for t in range(2,s):
+                    output = OUTDIR+'/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_'+str(n)+'.csv'
+                    generate_ballot_set(c,VOTERS,output)
+                    # print("created file "+output)
+                    file2tiedfile(output,VOTERS,c,s,t)
+                    # verify correct number of ties
+                    check_ties(file2table(output),t,output)
+    
+                    output = OUTDIR+'/2deep_c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_'+str(n)+'.csv'
+                    generate_ballot_set(c,VOTERS,output)
+                    file2tiedfile2deep(output,VOTERS,c,s,t)
