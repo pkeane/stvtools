@@ -1,5 +1,6 @@
 import itertools
 import os
+import time
 
 def file2table(filename):
     fh = open(filename)
@@ -55,11 +56,30 @@ def get_avg(list):
 
 if __name__ == '__main__':
     BASEDIR = 'ballots'
+    file_count = 0
+    for root, dirs, files in os.walk(BASEDIR):
+        for name in files:
+            file_count += 1
+    print(str(file_count)+' TOTAL files to process')
+    start_time = time.time()
+    processed_files = 0
     #BASEDIR = 'test'
-    for file in os.listdir(BASEDIR):
-        data = file2ballots(BASEDIR+'/'+file)
-        rhos = []
-        for pair in (list(itertools.combinations(list(range(len(data))),2))):
-            rhos.append(get_rho(data[pair[0]],data[pair[1]]))
-        print('{0:f}'.format(get_avg(rhos)),file)
+    for i in range(100):
+        BASEDIR = 'ballots/'+str(i+1)
+        for file in os.listdir(BASEDIR):
+            data = file2ballots(BASEDIR+'/'+file)
+            rhos = []
+            for pair in (list(itertools.combinations(list(range(len(data))),2))):
+                rhos.append(get_rho(data[pair[0]],data[pair[1]]))
+            print(file,'{0:f}'.format(get_avg(rhos)))
+            now = time.time()
+            elapsed_time = now - start_time
+            processed_files += 1
+            remaining_files = file_count - processed_files
+            avg_time_per_file = elapsed_time/processed_files
+            remaining_time = avg_time_per_file * remaining_files
+            hours_left = remaining_time/3600
+           
+            print(str(hours_left)+' hours processing time left')
+
 
