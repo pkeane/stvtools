@@ -28,7 +28,17 @@ def swap(data):
             else:
                 table[i].append('')
     return table
-    
+
+def get_factions(filename):
+    data = file2table(filename)
+    toppers = data[0]
+    factions = {}
+    for i in range(len(toppers)):
+        if toppers[i] not in factions:
+            factions[toppers[i]] = []
+        factions[toppers[i]].append(i)
+    print(max([x for x in (len(factions[n]))]))
+    print("FACTIONS: ", factions)
 
 def get_rho(list1,list2):
     cands = sorted(list(set(list1+list2)))
@@ -67,6 +77,7 @@ if __name__ == '__main__':
     for i in range(100):
         BASEDIR = 'ballots/'+str(i+1)
         for file in os.listdir(BASEDIR):
+            get_factions(BASEDIR+'/'+file)
             data = file2ballots(BASEDIR+'/'+file)
             rhos = []
             for pair in (list(itertools.combinations(list(range(len(data))),2))):
