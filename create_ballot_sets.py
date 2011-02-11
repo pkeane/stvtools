@@ -214,6 +214,8 @@ def file2tiedfile2deep(output,voters,cands,seats,ties):
     csv_data = file2table(output)
     tied_data = create_2deep_ties(csv_data,seats,voters,ties)
     if not tied_data:
+        # delete file
+        os.remove(output)
         return
     fh = open(output,"w")
     for row in tied_data:
@@ -238,22 +240,28 @@ if __name__ == '__main__':
     file_count = 100*len(CANDS)*len(SEATS)*9 
     print(str(file_count)+' TOTAL files to process')
 
-    for n in range(100):
-        OUTDIR = 'ballots/'+str(n+1)
+    for n in range(1,101):
+        OUTDIR = 'ballots'
         if not os.path.exists(OUTDIR):
             os.makedirs(OUTDIR)
         for c in CANDS:
             for s in SEATS:
                 # the range of possible ties
                 for t in range(2,s):
-                    output = OUTDIR+'/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_'+str(n)+'.csv'
+                    subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1'
+                    if not os.path.exists(subdir):
+                        os.makedirs(subdir)
+                    output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_d1-'+str(n)+'.txt'
                     generate_ballot_set(c,VOTERS,output)
                     # print("created file "+output)
                     file2tiedfile(output,VOTERS,c,s,t)
                     # verify correct number of ties
                     check_ties(file2table(output),t,output)
     
-                    output = OUTDIR+'/2deep_c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_'+str(n)+'.csv'
+                    subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d2'
+                    if not os.path.exists(subdir):
+                        os.makedirs(subdir)
+                    output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d2/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_d2-'+str(n)+'.txt'
                     generate_ballot_set(c,VOTERS,output)
                     file2tiedfile2deep(output,VOTERS,c,s,t)
         

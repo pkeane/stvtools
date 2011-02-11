@@ -87,23 +87,25 @@ if __name__ == '__main__':
         for name in files:
             file_count += 1
     print(str(file_count)+' TOTAL files to process')
-    exit()
     start_time = time.time()
     processed_files = 0
     # BASEDIR = 'test'
-    for i in range(100):
-        BASEDIR = 'ballots/'+str(i+1)
-        for file in os.listdir(BASEDIR):
-            cm = get_coordination_measure(BASEDIR+'/'+file)
-            print(file,' : ','{0:f}'.format(cm))
-
+    outfile = 'coordination_measures_'+str(int(start_time))
+    fh = open(outfile,"w")
+    BASEDIR = 'ballots'
+    for subdir in os.listdir(BASEDIR):
+        for file in os.listdir(BASEDIR+'/'+subdir):
+            cm = get_coordination_measure(BASEDIR+'/'+subdir+'/'+file)
+            line = file+' {0:f}'.format(cm)
+            fh.write(line+"\n") 
+    
             now = time.time()
             elapsed_time = now - start_time
             processed_files += 1
             remaining_files = file_count - processed_files
             avg_time_per_file = elapsed_time/processed_files
             remaining_time = avg_time_per_file * remaining_files
-            hours_left = remaining_time/3600
-            print(str(hours_left)+' hours processing time left')
+            min_left = remaining_time/60
+            print(str(min_left)+' minutes processing time left (approx)')
 
 
