@@ -61,26 +61,6 @@ def swap(data):
             else:
                 table[i].append('')
     return table
-    
-def check_ties(data,ties,filename):
-    cand_counts = {}
-    out = ''
-    for cand in data[0]:
-        if cand not in cand_counts:
-            cand_counts[cand] = 0
-        cand_counts[cand] += 1
-    counts = {}
-    for c in cand_counts:
-        if cand_counts[c] not in counts:
-            counts[cand_counts[c]] = 0
-        counts[cand_counts[c]] += 1
-    sorted_ties = sorted(counts.items(), key=itemgetter(1))
-    top = sorted_ties.pop()
-    if top[1] != ties:
-        print('PROBLEM!! '+str(top[1])+' TIES IN '+filename)
-    else:
-        pass
-        #print("OK. "+str(ties)+" ties")
 
 def put_first(list,cellval):
   list.remove(cellval)
@@ -169,7 +149,6 @@ def create_2deep_ties(data,seats,voters,ties):
 
     num_remaining_ballots = len(swapped_data) - counter
 
-
     # 2-DEEP coordination check
     # do we have enough candidates for 1st & 2nd place ties?
     # do we have enough candidates to spread out over remaining ballots?
@@ -240,6 +219,19 @@ if __name__ == '__main__':
     file_count = 100*len(CANDS)*len(SEATS)*9 
     print(str(file_count)+' TOTAL files to process')
 
+    # make random ballots
+    for n in range(1,101):
+        OUTDIR = 'ballots'
+        if not os.path.exists(OUTDIR):
+            os.makedirs(OUTDIR)
+        for c in CANDS:
+            for s in SEATS:
+                subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t0.d0'
+                if not os.path.exists(subdir):
+                    os.makedirs(subdir)
+                output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t0.d0/c'+str(c)+'_s'+str(s)+'_t0_d0-'+str(n)+'.txt'
+                generate_ballot_set(c,VOTERS,output)
+
     for n in range(1,101):
         OUTDIR = 'ballots'
         if not os.path.exists(OUTDIR):
@@ -248,16 +240,16 @@ if __name__ == '__main__':
             for s in SEATS:
                 # the range of possible ties
                 for t in range(2,s):
+
+                    # make 1 deep ballots
                     subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1'
                     if not os.path.exists(subdir):
                         os.makedirs(subdir)
                     output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_d1-'+str(n)+'.txt'
                     generate_ballot_set(c,VOTERS,output)
-                    # print("created file "+output)
                     file2tiedfile(output,VOTERS,c,s,t)
-                    # verify correct number of ties
-                    check_ties(file2table(output),t,output)
     
+                    # make 2 deep ballots
                     subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d2'
                     if not os.path.exists(subdir):
                         os.makedirs(subdir)
