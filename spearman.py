@@ -29,6 +29,15 @@ def swap(data):
                 table[i].append('')
     return table
 
+def get_coordination_measure_no_ties(filename):
+    filedata = file2table(filename)
+    rhos = []
+    # make each ballot a row (instead of a column)
+    data = swap(filedata)
+    for pair in (list(itertools.combinations(list(range(len(data))),2))):
+        rhos.append(get_rho(data[pair[0]],data[pair[1]]))
+    return get_avg(rhos)
+
 def get_coordination_measure(filename):
     filedata = file2table(filename)
     toppers = filedata[0]
@@ -87,6 +96,7 @@ if __name__ == '__main__':
         for name in files:
             file_count += 1
     print(str(file_count)+' TOTAL files to process')
+    exit()
     start_time = time.time()
     processed_files = 0
     # BASEDIR = 'test'
@@ -95,7 +105,14 @@ if __name__ == '__main__':
     BASEDIR = 'ballots'
     for subdir in os.listdir(BASEDIR):
         for file in os.listdir(BASEDIR+'/'+subdir):
-            cm = get_coordination_measure(BASEDIR+'/'+subdir+'/'+file)
+            params = subdir.split('.')
+            ties = int(params[2].lstrip('t'))
+
+            if ties:
+                cm = get_coordination_measure(BASEDIR+'/'+subdir+'/'+file)
+            else:
+                cm = get_coordination_measure_no_ties(BASEDIR+'/'+subdir+'/'+file)
+
             line = file+' {0:f}'.format(cm)
             fh.write(line+"\n") 
     

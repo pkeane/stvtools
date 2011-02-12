@@ -89,7 +89,6 @@ def create_ties(data,seats,voters,ties):
     votes_per_tie = voters//ties
     cand_list= get_candidates(data)
 
-
     tied_cands = cand_list[0:ties]
     # make each ballot a ROW instead of a COL
     swapped_data = swap(data)
@@ -209,6 +208,8 @@ if __name__ == '__main__':
     VOTERS = 50
     SEATS = [6,7,8,9,10,11,12,13,14,15]
     CANDS = [20,25,30,35,40,45]
+    NUM_PROFILES = 100
+    NUM_PROFILES = 1
 
     print('creating ballot sets')
     print('fixed number of voters is 50')
@@ -217,15 +218,14 @@ if __name__ == '__main__':
 
     start_time = time.time()
     processed_files = 0
-    # use 9 as avg ties
-    file_count = 100*len(CANDS)*len(SEATS)*9 
+    file_count = 106400 
     print(str(file_count)+' TOTAL files to process')
 
     OUTDIR = 'ballots'
 
     # make random ballots
     num_random = 0
-    for n in range(1,101):
+    for n in range(1,NUM_PROFILES+1):
         if not os.path.exists(OUTDIR):
             os.makedirs(OUTDIR)
         for c in CANDS:
@@ -238,13 +238,20 @@ if __name__ == '__main__':
                 print (str(num_random) + output)
                 generate_ballot_set(c,VOTERS,output)
 
-    for n in range(1,101):
+    for n in range(1,NUM_PROFILES+1):
         if not os.path.exists(OUTDIR):
             os.makedirs(OUTDIR)
         for c in CANDS:
             for s in SEATS:
                 # the range of possible ties
                 for t in range(2,s):
+
+                    value_of_tied_ballots = (VOTERS//t)*100 
+                    droop = (100*VOTERS//(s+1))+1
+                    if value_of_tied_ballots < droop:
+                        print("value of tied ballots: "+str(value_of_tied_ballots)+" is less than droop: "+str(droop))
+                        print("Seats: "+str(s)+" Ties: "+str(t))
+                        continue
 
                     # make 1 deep ballots
                     subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1'

@@ -88,8 +88,6 @@ def check_data(data,p):
 
     print('OK data '+p['filename'])
 
-
-
 if __name__ == "__main__":
     num = 0
     BASEDIR = 'ballots'
