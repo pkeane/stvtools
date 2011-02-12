@@ -36,19 +36,34 @@ def check_ties(data,p):
 
     for depth in range(p['deep']):
         cand_counts = {}
+        # get counts for each candidate
         for cand in data[depth]:
             if cand not in cand_counts:
                 cand_counts[cand] = 0
             cand_counts[cand] += 1
         counts = {}
+        # get count of each count value
         for c in cand_counts:
             if cand_counts[c] not in counts:
                 counts[cand_counts[c]] = 0
             counts[cand_counts[c]] += 1
-        sorted_ties = sorted(counts.items(), key=itemgetter(1))
-        top = sorted_ties.pop()
-        if top[1] != p['ties']:
-            print('PROBLEM!! '+str(top[1])+' TIES IN '+filename)
+        # get highest count
+        top_ties = max(counts.values())
+        if top_ties != p['ties']:
+            if 1 == depth:
+                # actually "remainder" candidates can be part of tie blocks in
+                # place 2
+                print('POSSIBLE PROBLEM!! '+str(top_ties)+' TIES IN '+p['filename']+' DEPTH is '+str(depth+1))
+                print cand_counts
+                print counts
+                print data[depth]
+            else:
+                print('PROBLEM!! '+str(top_ties)+' TIES IN '+p['filename']+' DEPTH is '+str(depth+1))
+                print cand_counts
+                print counts
+                print data[depth]
+                raw_input('break')
+                # sys.exit()
         else:
             print('OK '+str(depth+1)+' ties '+p['filename'])
 
@@ -76,6 +91,7 @@ def check_data(data,p):
 
 
 if __name__ == "__main__":
+    num = 0
     BASEDIR = 'ballots'
     for subdir in os.listdir(BASEDIR):
         print(subdir)
@@ -88,6 +104,8 @@ if __name__ == "__main__":
         p['deep'] = int(params[3].lstrip('d'))
 
         for filename in os.listdir(BASEDIR+'/'+subdir):
+            num += 1
+            print num
             p['filename'] = filename
             data = file2table(BASEDIR+'/'+subdir+'/'+filename)
             check_data(data,p)

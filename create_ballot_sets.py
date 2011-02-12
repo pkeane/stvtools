@@ -108,10 +108,12 @@ def create_ties(data,seats,voters,ties):
     # under what circumstances can we get too many ties?
     # when there are enough remaining ballots to (by chance)
     # include another set of (votes_per_tie) ties
+    # OR if voters%ties >= votes_per_tie
     if voters-(votes_per_tie*ties) >= votes_per_tie:
+        # print("CLICK!!!!! "+str(len(cand_list))+" CANDIDATES "+str(seats)+" seats "+str(ties)+" TIES")
         # print ("POTENTIAL PROBLEM. Counter is at "+str(counter))
         # remaining candidates
-        remaining = cand_list[ties:-1]
+        remaining = cand_list[ties:]
         # cycle through remaining cands, putting each at the top of a remaining
         # ballot (votes_per_tie - 1) times until you run out of ballots
         for rc in remaining:
@@ -119,6 +121,7 @@ def create_ties(data,seats,voters,ties):
                 # make sure we have ballots left to fix
                 if len(swapped_data) > counter:
                     ballot = swapped_data[counter]
+                    # print("BALLOT INDEX "+str(counter)+" CAND "+rc)
                     swapped_data[counter] = put_first(ballot,rc)
                     counter += 1
     
@@ -167,7 +170,7 @@ def create_2deep_ties(data,seats,voters,ties):
     # appear as first in these remainder ballots
 
     # remaining candidates
-    remaining = cand_list[2*ties:-1]
+    remaining = cand_list[2*ties:]
     # cycle through remaining cands, putting each at the top of a remaining
     # ballot (votes_per_tie - 1) times until you run out of ballots
     for rc in remaining:
@@ -175,6 +178,7 @@ def create_2deep_ties(data,seats,voters,ties):
             # make sure we have ballots left to fix
             if len(swapped_data) > counter:
                 ballot = swapped_data[counter]
+                # raw_input("BALLOT INDEX "+str(counter)+" CAND "+rc+" j is "+str(j)+" LEN Swapped is "+str(len(swapped_data)))
                 swapped_data[counter] = put_first(ballot,rc)
                 counter += 1
     
@@ -207,6 +211,7 @@ if __name__ == '__main__':
     VOTERS = 50
     SEATS = [6,7,8,9,10,11,12,13,14,15]
     CANDS = [20,25,30,35,40,45]
+    CANDS = [20]
 
     print('creating ballot sets')
     print('fixed number of voters is 50')
@@ -220,7 +225,10 @@ if __name__ == '__main__':
     print(str(file_count)+' TOTAL files to process')
 
     # make random ballots
+    num_random = 0
     for n in range(1,101):
+        # NOTE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        break 
         OUTDIR = 'ballots'
         if not os.path.exists(OUTDIR):
             os.makedirs(OUTDIR)
@@ -230,6 +238,8 @@ if __name__ == '__main__':
                 if not os.path.exists(subdir):
                     os.makedirs(subdir)
                 output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t0.d0/c'+str(c)+'_s'+str(s)+'_t0_d0-'+str(n)+'.txt'
+                num_random += 1
+                print (str(num_random) + output)
                 generate_ballot_set(c,VOTERS,output)
 
     for n in range(1,101):
@@ -239,7 +249,9 @@ if __name__ == '__main__':
         for c in CANDS:
             for s in SEATS:
                 # the range of possible ties
-                for t in range(2,s):
+                #NOTE!!!!!!!!!!!!!
+                # for t in range(2,s):
+                for t in range(9,10):
 
                     # make 1 deep ballots
                     subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1'
