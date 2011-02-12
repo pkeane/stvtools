@@ -209,17 +209,12 @@ if __name__ == '__main__':
     SEATS = [6,7,8,9,10,11,12,13,14,15]
     CANDS = [20,25,30,35,40,45]
     NUM_PROFILES = 100
-    NUM_PROFILES = 1
+    # NUM_PROFILES = 1
 
     print('creating ballot sets')
     print('fixed number of voters is 50')
     print('fixed number of seats is 6/7/8/9/10/11/12/13/14/15')
     print('fixed number of candidates is 20/25/30/35/40/45')
-
-    start_time = time.time()
-    processed_files = 0
-    file_count = 106400 
-    print(str(file_count)+' TOTAL files to process')
 
     OUTDIR = 'ballots'
 
@@ -238,6 +233,11 @@ if __name__ == '__main__':
                 print (str(num_random) + output)
                 generate_ballot_set(c,VOTERS,output)
 
+    start_time = time.time()
+    processed_files = 0
+    file_count = 103700 
+    print(str(file_count)+' TOTAL files to process')
+
     for n in range(1,NUM_PROFILES+1):
         if not os.path.exists(OUTDIR):
             os.makedirs(OUTDIR)
@@ -245,29 +245,28 @@ if __name__ == '__main__':
             for s in SEATS:
                 # the range of possible ties
                 for t in range(2,s):
-
+                    # test for Droop on ties sets
                     value_of_tied_ballots = (VOTERS//t)*100 
                     droop = (100*VOTERS//(s+1))+1
                     if value_of_tied_ballots < droop:
                         print("value of tied ballots: "+str(value_of_tied_ballots)+" is less than droop: "+str(droop))
                         print("Seats: "+str(s)+" Ties: "+str(t))
-                        continue
-
-                    # make 1 deep ballots
-                    subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1'
-                    if not os.path.exists(subdir):
-                        os.makedirs(subdir)
-                    output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_d1-'+str(n)+'.txt'
-                    generate_ballot_set(c,VOTERS,output)
-                    file2tiedfile(output,VOTERS,c,s,t)
-    
-                    # make 2 deep ballots
-                    subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d2'
-                    if not os.path.exists(subdir):
-                        os.makedirs(subdir)
-                    output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d2/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_d2-'+str(n)+'.txt'
-                    generate_ballot_set(c,VOTERS,output)
-                    file2tiedfile2deep(output,VOTERS,c,s,t)
+                    else:
+                        # make 1 deep ballots
+                        subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1'
+                        if not os.path.exists(subdir):
+                            os.makedirs(subdir)
+                        output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_d1-'+str(n)+'.txt'
+                        generate_ballot_set(c,VOTERS,output)
+                        file2tiedfile(output,VOTERS,c,s,t)
+        
+                        # make 2 deep ballots
+                        subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d2'
+                        if not os.path.exists(subdir):
+                            os.makedirs(subdir)
+                        output = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d2/c'+str(c)+'_s'+str(s)+'_t'+str(t)+'_d2-'+str(n)+'.txt'
+                        generate_ballot_set(c,VOTERS,output)
+                        file2tiedfile2deep(output,VOTERS,c,s,t)
         
                     now = time.time()
                     elapsed_time = now - start_time
