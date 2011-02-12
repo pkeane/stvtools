@@ -209,7 +209,6 @@ if __name__ == '__main__':
     VOTERS = 50
     SEATS = [6,7,8,9,10,11,12,13,14,15]
     CANDS = [20,25,30,35,40,45]
-    CANDS = [20]
 
     print('creating ballot sets')
     print('fixed number of voters is 50')
