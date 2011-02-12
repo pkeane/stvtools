@@ -110,8 +110,6 @@ def create_ties(data,seats,voters,ties):
     # include another set of (votes_per_tie) ties
     # OR if voters%ties >= votes_per_tie
     if voters-(votes_per_tie*ties) >= votes_per_tie:
-        # print("CLICK!!!!! "+str(len(cand_list))+" CANDIDATES "+str(seats)+" seats "+str(ties)+" TIES")
-        # print ("POTENTIAL PROBLEM. Counter is at "+str(counter))
         # remaining candidates
         remaining = cand_list[ties:]
         # cycle through remaining cands, putting each at the top of a remaining
@@ -160,7 +158,6 @@ def create_2deep_ties(data,seats,voters,ties):
         return
     else:
         pass
-        # print("OK! ("+str(ties)+" ties, "+str(len(cand_list))+" candidates, "+str(seats)+" seats)")
 
     # now fix remaining
     # for 2-deep we only need to worry about first place
@@ -178,6 +175,7 @@ def create_2deep_ties(data,seats,voters,ties):
             # make sure we have ballots left to fix
             if len(swapped_data) > counter:
                 ballot = swapped_data[counter]
+                # debug technique
                 # raw_input("BALLOT INDEX "+str(counter)+" CAND "+rc+" j is "+str(j)+" LEN Swapped is "+str(len(swapped_data)))
                 swapped_data[counter] = put_first(ballot,rc)
                 counter += 1
@@ -224,12 +222,11 @@ if __name__ == '__main__':
     file_count = 100*len(CANDS)*len(SEATS)*9 
     print(str(file_count)+' TOTAL files to process')
 
+    OUTDIR = 'ballots'
+
     # make random ballots
     num_random = 0
     for n in range(1,101):
-        # NOTE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        break 
-        OUTDIR = 'ballots'
         if not os.path.exists(OUTDIR):
             os.makedirs(OUTDIR)
         for c in CANDS:
@@ -243,15 +240,12 @@ if __name__ == '__main__':
                 generate_ballot_set(c,VOTERS,output)
 
     for n in range(1,101):
-        OUTDIR = 'ballots'
         if not os.path.exists(OUTDIR):
             os.makedirs(OUTDIR)
         for c in CANDS:
             for s in SEATS:
                 # the range of possible ties
-                #NOTE!!!!!!!!!!!!!
-                # for t in range(2,s):
-                for t in range(9,10):
+                for t in range(2,s):
 
                     # make 1 deep ballots
                     subdir = OUTDIR+'/c'+str(c)+'.s'+str(s)+'.t'+str(t)+'.d1'
