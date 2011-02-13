@@ -516,6 +516,26 @@ def get_candidates(data):
   return cand_list
 
 if __name__ == '__main__':
+    start = time.time()
+    seats = 7
+    ties = 2
+    runs = 300
+    votes = 50
+    file = 'test.csv'
+    csv_data = file2table(file)
+    cands = len(get_candidates(csv_data))
+    droop = calculate_droop(votes,seats,100)
+    print('reading file "'+file+'"')
+    print(str(cands)+" candidates")
+    print(str(seats)+" seats")
+    print("droop is "+str(droop))
+    print("\nresults:")
+    print(run_csv_tally(file,seats,runs))
+    now = time.time()
+    dur = now-start
+    print('took '+str(dur)+'secs')
+
+if __name__ == '__xmain__':
     BASEDIR = 'ballots'
     file_count = 0
     for root, dirs, files in os.walk(BASEDIR):

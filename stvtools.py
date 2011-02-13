@@ -23,7 +23,7 @@ data definitions:
             'is_full_professor': Boolean
             'step_points': array of points at each step
             'points': points at current step
-    candidates -- a dictionary of eid, candidate
+    candidates -- a dictionary of eid => candidate
 
     committee -- an array of candidates who have been elected
     ballot_tally -- a dictionary of eid, points of first position candidates
@@ -31,7 +31,6 @@ data definitions:
 
 configuration variables:
     seats -- integer indicating the size of the committee to be elected
-    minimum_full_professors
     initial_ballot_value
 """
 
@@ -43,7 +42,6 @@ class StvCandidate:
         self.step_points = step_points
         self.points = points 
     def __repr__(self):
-        #return repr((self.eid,self.name,self.is_full_professor,self.step_points,self.points))
         return repr((self.name,self.eid,self.points))
 
 def calculate_droop(num_of_ballots,seats,initial_ballot_value):
@@ -51,87 +49,61 @@ def calculate_droop(num_of_ballots,seats,initial_ballot_value):
     n.b. do not re-calculate droop after steps have begun
     Droop is determined by the original num of ballots.
     """
-    droop = (initial_ballot_value*num_of_ballots//(seats+1))+1 # // means trunc
-    return droop
+    return (initial_ballot_value*num_of_ballots//(seats+1))+1 # // means trunc
 
-def even_ballot_length(ballots):
-    """ makes all ballots have the same length by appending
-    array elements of '-' to each
-    """
-    max_length = max(len(ballot['data']) for ballot in ballots)
-    for ballot in ballots:
-        length = len(ballot['data'])
-        ballot['data'].extend(['-'] * (max_length - length))
-    return ballots
-
-def ballots_to_table(ballots):
-    """accepts an array of ballots and creates a table suitable for HTML 
-    display. puts each ballot's value next to the first-place entry
-    """
-    #ballots = even_ballot_length(ballots)
-    table = []
-    #create rows
-    for i in range(len(ballots[0]['data'])):
-        row = [] 
-        #create cells in row
-        for ballot in ballots:
-            if not i:
-                #append value to top position (i.e., i == 0)
-                row.append(ballot['data'][i]+'('+str(ballot['value'])+')')
-            else:
-                row.append(ballot['data'][i])
-        table.append(row)
-    return table
-
-def tally_csv(data,seats):
+def tally_csv(bals,cands,seats,droop):
     CONFIG = {}
     CONFIG['seats'] = seats 
     CONFIG['minimum_full_professors'] = 0 
     CONFIG['initial_ballot_value'] = 100 
     ballots = [] 
-    for py_ballot in data['BALLOTS']: 
+    for py_ballot in bals: 
         b = {}
         b['data'] = py_ballot 
         b['value'] = CONFIG['initial_ballot_value']
         ballots.append(b)
-    ballots = even_ballot_length(ballots)
     candidates = {} 
-    for cand in data['CANDIDATES']: 
+    for cand in cands: 
         full = True
         c = StvCandidate( cand, cand,full,[],0)
         candidates[cand] = c
-    droop = calculate_droop(len(ballots),CONFIG['seats'],CONFIG['initial_ballot_value'])
     logs = [] 
     committee = []
     (ballots,candidates,committee,logs) = run_step(ballots,candidates,committee,CONFIG,droop,logs)
     return logs
 
-def run_csv_tally(csv_file,seats,runs):
-  """ This is a convenience function that runs multiple tallies over a 
-  csv data set.  The csv should have lines of equal length.  Ballots
-  are columns, rows are "places" (first row is first place on each
-  ballot). Empty cells are OK, but columns are assumed to be continuous.
-  cell values represent EID and Name (no distinction).  
-  """
-  csv_data = file2table(csv_file)
-  cands = get_candidates(csv_data) 
-  data = {}
-  data['BALLOTS'] = swap(csv_data) 
-  data['CANDIDATES'] = cands 
-  was_elected = {}
-  for i in range(runs):
-      result = tally_csv(copy.deepcopy(data),seats)
-      last = result.pop()
-      for cand in last['committee']:
-          if cand.eid in was_elected:
-              was_elected[cand.eid] += 1
-          else:
-              was_elected[cand.eid] = 1
-  sorted_elected = sorted(list(was_elected.items()),key=itemgetter(1),reverse=True)
-  out = ''
-  for tup in sorted_elected:
-      out += tup[0]+' ('+ str(tup[1])+')\n'
-  return out
+def run_csv_tally(csv_file,seats,runs,droop):
+    """ This is a convenience function that runs multiple tallies over a 
+    csv data set.  The csv should have lines of equal length.  Ballots
+    are columns, rows are "places" (first row is first place on each
+    ballot). Empty cells are OK, but columns are assumed to be continuous.
+    cell values represent EID and Name (no distinction).  
+    """
+    csv_data = file2table(csv_file)
+    cands = get_candidates(csv_data) 
+    swapped = swap(csv_data) 
+    was_elected = {}
+    for i in range(runs):
+        # crazy Python pass-by behavior makes this not work:
+        # result = tally_csv(swapped,cands,seats,droop)
+        result = tally_csv(swap(csv_data),cands,seats,droop)
+        last = result.pop()
+        for cand in last['committee']:
+            if cand.eid in was_elected:
+                was_elected[cand.eid] += 1
+            else:
+                was_elected[cand.eid] = 1
+
+    print was_elected
+    sum_of_logs = 0
+    num_K = was_elected.values().count(runs)
+    num_J = len(was_elected.items())
+    for eid in was_elected:
+        probability = float(was_elected[eid])/runs
+        sum_of_logs += probability*math.log(probability)
+    entropy = abs(sum_of_logs)
+    
+    return ' J is '+str(num_J)+' K is '+str(num_K)+' entropy is '+str(entropy)
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     """ This is the "master" function.  It can be called once, and will recurse
@@ -140,7 +112,6 @@ def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     seats = config['seats']
     log = {}
     log['step_count'] = step_count+1
-    log['ballot_table'] = ballots_to_table(ballots)
     ballot_tally = get_ballot_tally(ballots) 
     no_votes = []
     for eid in candidates:
@@ -185,30 +156,6 @@ def set_candidate_points(candidates,ballot_tally):
             candidates[eid].step_points.append(0)
     return candidates
 
-def check_full_professor_constraint(candidates,ballots,committee,config,log):
-    """ run this check AFTER a new committe member is added """
-    purges = []
-    max_non_full = config['seats'] - config['minimum_full_professors']
-    (count_full,count_non_full) = get_committee_counts(committee)
-    if max_non_full == count_non_full:
-        #purge ballots of non-full
-        for non in get_non_full_professors(candidates):
-            ballots = purge_ballots_of_eid(ballots,non)
-        #purge candidates of non-full
-        for non in get_non_full_professors(candidates):
-            purges.append(candidates[non].name)
-            del candidates[non]
-    log['full_professor'] = ', '.join(purges)
-    return (candidates,ballots,log)
-
-def get_non_full_professors(candidates):
-    non_full = []
-    for eid in candidates:
-        if not candidates[eid].is_full_professor:
-            non_full.append(eid)
-    return non_full
-
-
 def elect_or_eliminate_one(candidates,ballots,committee,config,droop,log):
     """ determine ONE candidate to elect or eliminate
     """
@@ -219,16 +166,15 @@ def elect_or_eliminate_one(candidates,ballots,committee,config,droop,log):
             (ballots,log) = allocate_surplus(ballots,winner,droop,log)
             committee.append(winner)
             surplus = winner.points - droop
-            log['report'] = "added "+winner.name+" ("+winner.eid+") to committee and distributed surplus of " + str(surplus)
+            # log['report'] = "added "+winner.name+" ("+winner.eid+") to committee and distributed surplus of " + str(surplus)
             del candidates[winner.eid]
         else:
             #nobody has at least droop
             (loser,log) = get_loser(candidates,ballots,log)
-            log['report'] = "removed "+loser.name+' ('+loser.eid+") from ballot"
+            # log['report'] = "removed "+loser.name+' ('+loser.eid+") from ballot"
             del candidates[loser.eid]
             ballots = purge_ballots_of_eid(ballots,loser.eid)
     (committee,log) = autofill_committee(candidates,ballots,committee,config,log)
-    (candidates, ballots,log) = check_full_professor_constraint(candidates,ballots,committee,config,log)
     return (candidates,ballots,committee,log)
 
 def autofill_committee(candidates,ballots,committee,config,log):
@@ -333,9 +279,11 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
     """
     if run_count:
-        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
+        pass
+        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
     else:
-        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
+        pass
+        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
 
     # per schwartz p. 7, we only need to check historical
@@ -343,7 +291,9 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     # straight random. run_count is zero indexed, so we add 1
     if log['step_count'] == run_count+1:
         r = randint(0,len(tied_candidates)-1)
-        log['tie_breaks'].append('*** coin toss ***')
+        # NOTE!!!!!!!!!!!!!!!!!!!! 
+        # r = 0 
+        # log['tie_breaks'].append('*** coin toss ***')
         return (tied_candidates[r],log)
 
     historical_step_points = {}
@@ -372,8 +322,9 @@ def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,de
         log['tie_breaks'].append('**** coin toss ****')
         return (tied_candidates[r],log)
     else:
-        log['tie_breaks'].append('** considering points at preference number '+str(depth+1))
-        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
+        pass
+        # log['tie_breaks'].append('** considering points at preference number '+str(depth+1))
+        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
     tallies = {}
 
@@ -418,9 +369,11 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
     """
     if run_count:
-        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
+        pass
+        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
     else:
-        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
+        pass
+        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
     # per schwartz p. 7, we only need to check historical
     # steps through step k (current) - 1 (e.g., first round go
@@ -429,7 +382,7 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
         # for lowest, if points = 0, no further processing is necessary
         if  0 == tied_candidates[0].points:
             r = randint(0,len(tied_candidates)-1)
-            log['tie_breaks'].append('*** coin toss ***')
+            # log['tie_breaks'].append('*** coin toss ***')
             return (tied_candidates[r],log)
         else:
             """
@@ -495,17 +448,10 @@ def swap(data):
     swaps rows and columns always returns table 
     """
     table = []
-    max_row_length = sorted([len(row) for row in data],reverse=True)[0]
-    for i in range(max_row_length):
-        table.append([])
-    for row in data:
-        for i in range(max_row_length):
-            if i < len(row):
-                table[i].append(row[i])
-            else:
-                table[i].append('')
+    for i in range(len(data[0])):
+        table.append([row[i] for row in data])
     return table
-    
+
 def get_candidates(data):
   cands = {}
   for row in data:
@@ -515,12 +461,40 @@ def get_candidates(data):
   cand_list.sort()
   return cand_list
 
+if __name__ == '__xmain__':
+    start = time.time()
+    seats = 7
+    ties = 2
+    runs = 300
+    votes = 50
+    file = 'test.csv'
+    csv_data = file2table(file)
+    num_cands = len(get_candidates(csv_data))
+    droop = calculate_droop(votes,seats,100)
+    print('reading file "'+file+'"')
+    print(str(num_cands)+" candidates")
+    print(str(seats)+" seats")
+    print("droop is "+str(droop))
+    print("\nresults:")
+    print(run_csv_tally(file,seats,runs,droop))
+    now = time.time()
+    dur = now-start
+    print('took '+str(dur)+'secs')
+
+
+
+
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        partition = raw_input('select number of candidates (20,25,30,35,40,45): ')
+    else:
+        partition = sys.argv[1]
     BASEDIR = 'ballots'
     file_count = 0
     for root, dirs, files in os.walk(BASEDIR):
         for name in files:
-            file_count += 1
+            if 'c'+partition in name:
+                file_count += 1
     print(str(file_count)+' TOTAL files to process')
     start_time = time.time()
     processed_files = 0
@@ -528,12 +502,20 @@ if __name__ == '__main__':
     outfile = 'instability_'+str(int(start_time))
     fh = open(outfile,"w")
     BASEDIR = 'ballots'
+    this_dur = 0
+    shortest_dur = 20 
+    longest_dur = 1
+    shortest_file = ''
+    longest_file = ''
+    last_end_time = start_time 
     for subdir in os.listdir(BASEDIR):
         params = subdir.split('.')
         votes = 50
         runs = 1000
         # runs = 10
         cands = int(params[0].lstrip('c'))
+        if int(partition) != cands:
+            continue
         seats = int(params[1].lstrip('s'))
         ties = int(params[2].lstrip('t'))
         deep = int(params[3].lstrip('d'))
@@ -550,13 +532,28 @@ if __name__ == '__main__':
             print("droop is "+str(droop))
 
             print("\nresults:")
-            print(run_csv_tally(filepath,seats,runs))
+            print(run_csv_tally(filepath,seats,runs,droop))
 
             now = time.time()
+            this_dur = now - last_end_time
+            last_end_time = now
+            if this_dur < shortest_dur:
+                shortest_dur = this_dur
+                shortest_file = file
+            if this_dur > longest_dur:
+                longest_dur = this_dur
+                longest_file = file
+
+            print("this iteration: "+str(this_dur)+" seconds")
+            print("shortest iteration: "+str(shortest_dur)+" seconds ("+shortest_file+")")
+            print("longest iteration: "+str(longest_dur)+" seconds ("+longest_file+")")
+
             elapsed_time = now - start_time
             processed_files += 1
             remaining_files = file_count - processed_files
             avg_time_per_file = elapsed_time/processed_files
+            print("average iteration: "+str(avg_time_per_file)+" seconds")
+            print("")
             remaining_time = avg_time_per_file * remaining_files
             left = remaining_time/3600
             print(str(left)+' hours processing time left (approx)')
