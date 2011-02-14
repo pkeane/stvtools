@@ -1,11 +1,20 @@
+try:
+    import json
+except:
+    import simplejson as json
 from operator import itemgetter, attrgetter
 from random import randint,shuffle
 import copy
+import httplib
+import itertools
 import math
 import optparse
 import os
+import socket
+import string
 import sys
 import time
+import urllib2
 
 """
 functions for running an STV election
@@ -72,14 +81,13 @@ def tally_csv(bals,cands,seats,droop):
     (ballots,candidates,committee,logs) = run_step(ballots,candidates,committee,CONFIG,droop,logs)
     return logs
 
-def run_csv_tally(csv_file,seats,runs,droop):
+def run_csv_tally(csv_data,seats,runs,droop):
     """ This is a convenience function that runs multiple tallies over a 
     csv data set.  The csv should have lines of equal length.  Ballots
     are columns, rows are "places" (first row is first place on each
     ballot). Empty cells are OK, but columns are assumed to be continuous.
     cell values represent EID and Name (no distinction).  
     """
-    csv_data = file2table(csv_file)
     cands = get_candidates(csv_data) 
     swapped = swap(csv_data) 
     was_elected = {}
@@ -94,16 +102,19 @@ def run_csv_tally(csv_file,seats,runs,droop):
             else:
                 was_elected[cand.eid] = 1
 
-    print was_elected
+    res = {}
+
+    res['slate'] = json.dumps(was_elected)
+    res['num_always_elected'] = was_elected.values().count(runs)
+    res['num_elected'] = len(was_elected.items())
+    
     sum_of_logs = 0
-    num_K = was_elected.values().count(runs)
-    num_J = len(was_elected.items())
     for eid in was_elected:
         probability = float(was_elected[eid])/runs
         sum_of_logs += probability*math.log(probability)
-    entropy = abs(sum_of_logs)
+    res['entropy'] = abs(sum_of_logs)
     
-    return ' J is '+str(num_J)+' K is '+str(num_K)+' entropy is '+str(entropy)
+    return res 
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     """ This is the "master" function.  It can be called once, and will recurse
@@ -432,6 +443,16 @@ def get_committee_counts(committee):
             non_full = non_full + 1
     return (full,non_full) 
 
+def jsondata2table(jsondata):
+    table = []
+    for line in jsondata:
+        row = []
+        for cell in line.split(','):
+            row.append(cell)
+        table.append(row)
+    return table
+
+
 def file2table(filename):
     fh = open(filename)
     table = []
@@ -461,99 +482,116 @@ def get_candidates(data):
   cand_list.sort()
   return cand_list
 
-if __name__ == '__xmain__':
+# following are functions for determining measure of coordination
+
+def get_coordination_measure_no_ties(filedata):
+    rhos = []
+    # make each ballot a row (instead of a column)
+    data = swap(filedata)
+    for pair in (list(itertools.combinations(list(range(len(data))),2))):
+        rhos.append(get_rho(data[pair[0]],data[pair[1]]))
+    avg_rhos = sum(rhos)/len(rhos)
+    return avg_rhos
+
+def get_coordination_measure(filedata):
+    toppers = filedata[0]
+    factions = {}
+    for i in range(len(toppers)):
+        if toppers[i] not in factions:
+            factions[toppers[i]] = []
+        factions[toppers[i]].append(i)
+    votes_per_tie = max([len(x) for x in factions.values()])
+    # get only factions that are in fact a set of tied ballots
+    sets = [fac for fac in factions.values() if len(fac) == votes_per_tie]
+    # print("FACTIONS: ", sets)
+    rhos = []
+    # create a faction data set
+    # make each ballot a row (instead of a column)
+    swapped_data = swap(filedata)
+    for set in sets:
+        data = []
+        for j in set:
+            data.append(swapped_data[j])
+        # data is now a faction of votes 
+        # get rhos w/in this faction
+        for pair in (list(itertools.combinations(list(range(len(data))),2))):
+            rhos.append(get_rho(data[pair[0]],data[pair[1]]))
+    avg_rhos = sum(rhos)/len(rhos)
+    return avg_rhos
+    #print(file,'{0:f}'.format(avg_rhos))
+
+def get_rho(list1,list2):
+    cands = sorted(list(set(list1+list2)))
+    sum_ofDsquared = 0
+    for cand in cands:
+        rank1 = list1.index(cand)
+        rank2 = list2.index(cand)
+        # print (rank1,rank2)
+        D = (rank1-rank2)
+        Dsquared = D**2
+        sum_ofDsquared += Dsquared
+    
+    # print(sum_ofDsquared)
+    c = len(cands)
+    return 1-(float(6*sum_ofDsquared)/(c*(c**2-1)))
+
+def get_mc(data,ties):
+    if ties:
+        cm = get_coordination_measure(data)
+    else:
+        cm = get_coordination_measure_no_ties(data)
+    return cm 
+
+def analyze_profile(profile_data,runs):
+    seats = int(profile_data['seats'])
+    ties = int(profile_data['ties'])
+    num_cands = int(profile_data['candidates'])
+    droop = int(profile_data['droop'])
+    votes = int(profile_data['votes'])
+    profile_data['runs'] = runs 
+    profile_data['client_identifier'] = socket.gethostname()+'/'+str(os.getpid)
+
+    csv_data = jsondata2table(profile_data['data'])
+
     start = time.time()
-    seats = 7
-    ties = 2
-    runs = 300
-    votes = 50
-    file = 'test.csv'
-    csv_data = file2table(file)
-    num_cands = len(get_candidates(csv_data))
-    droop = calculate_droop(votes,seats,100)
-    print('reading file "'+file+'"')
-    print(str(num_cands)+" candidates")
-    print(str(seats)+" seats")
-    print("droop is "+str(droop))
-    print("\nresults:")
-    print(run_csv_tally(file,seats,runs,droop))
-    now = time.time()
-    dur = now-start
-    print('took '+str(dur)+'secs')
+    res = run_csv_tally(csv_data,seats,runs,droop)
+
+    dur = time.time() - start
+    profile_data['tally_duration_secs'] = dur 
+    profile_data['slate'] = res['slate']
+    profile_data['num_elected'] = res['num_elected']
+    profile_data['num_always_elected'] = res['num_always_elected']
+    profile_data['entropy'] = res['entropy']
+    profile_data['measure_of_coord'] = get_mc(csv_data,ties)
+
+    profile_json = json.dumps(profile_data)
+
+    h = httplib.HTTPConnection('dev.laits.utexas.edu',80)
+    url = string.replace(profile_data['url'],'http://dev.laits.utexas.edu','')
+    headers = {
+        "Content-Type":'application/json',
+        "Content-Length":str(len(profile_json)),
+    }
+
+    h.request("PUT",url,profile_json,headers)
+    r = h.getresponse()
+    return (r.read(),str(r.status),str(dur))
 
 
-
+def get_next_profile():
+    hpc_url = "http://dev.laits.utexas.edu/labs/stv/next.json"
+    response = urllib2.urlopen(hpc_url)
+    return json.loads(response.read())
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        partition = raw_input('select number of candidates (20,25,30,35,40,45): ')
-    else:
-        partition = sys.argv[1]
-    BASEDIR = 'ballots'
-    file_count = 0
-    for root, dirs, files in os.walk(BASEDIR):
-        for name in files:
-            if 'c'+partition in name:
-                file_count += 1
-    print(str(file_count)+' TOTAL files to process')
-    start_time = time.time()
-    processed_files = 0
-    # BASEDIR = 'test'
-    outfile = 'instability_'+str(int(start_time))
-    fh = open(outfile,"w")
-    BASEDIR = 'ballots'
-    this_dur = 0
-    shortest_dur = 20 
-    longest_dur = 1
-    shortest_file = ''
-    longest_file = ''
-    last_end_time = start_time 
-    for subdir in os.listdir(BASEDIR):
-        params = subdir.split('.')
-        votes = 50
-        runs = 1000
-        # runs = 10
-        cands = int(params[0].lstrip('c'))
-        if int(partition) != cands:
-            continue
-        seats = int(params[1].lstrip('s'))
-        ties = int(params[2].lstrip('t'))
-        deep = int(params[3].lstrip('d'))
 
-        for file in os.listdir(BASEDIR+'/'+subdir):
-            filepath = BASEDIR+'/'+subdir+'/'+file
-            csv_data = file2table(filepath)
-            cands = len(get_candidates(csv_data))
-            droop = calculate_droop(votes,seats,100)
+    runs = 1000
+    status = '200'
 
-            print('reading file "'+file+'"')
-            print(str(cands)+" candidates")
-            print(str(seats)+" seats")
-            print("droop is "+str(droop))
-
-            print("\nresults:")
-            print(run_csv_tally(filepath,seats,runs,droop))
-
-            now = time.time()
-            this_dur = now - last_end_time
-            last_end_time = now
-            if this_dur < shortest_dur:
-                shortest_dur = this_dur
-                shortest_file = file
-            if this_dur > longest_dur:
-                longest_dur = this_dur
-                longest_file = file
-
-            print("this iteration: "+str(this_dur)+" seconds")
-            print("shortest iteration: "+str(shortest_dur)+" seconds ("+shortest_file+")")
-            print("longest iteration: "+str(longest_dur)+" seconds ("+longest_file+")")
-
-            elapsed_time = now - start_time
-            processed_files += 1
-            remaining_files = file_count - processed_files
-            avg_time_per_file = elapsed_time/processed_files
-            print("average iteration: "+str(avg_time_per_file)+" seconds")
-            print("")
-            remaining_time = avg_time_per_file * remaining_files
-            left = remaining_time/3600
-            print(str(left)+' hours processing time left (approx)')
+    while '200' == status:
+        profile_data = get_next_profile()
+        filepath = profile_data['filepath']
+        print("working on "+filepath)
+        (msg,status,dur) = analyze_profile(profile_data,runs)
+        print(status+" : "+msg)
+        print("took "+dur+" seconds") 

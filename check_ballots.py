@@ -91,6 +91,14 @@ def check_data(data,p):
 if __name__ == "__main__":
     num = 0
     BASEDIR = 'ballots'
+
+    file_count = 0
+    for root, dirs, files in os.walk(BASEDIR):
+        for name in files:
+                file_count += 1
+    print(str(file_count)+' TOTAL files to process')
+    raw_input("press ENTER to proceed")
+
     for subdir in os.listdir(BASEDIR):
         print(subdir)
         p = {}

@@ -1,5 +1,6 @@
 import itertools
 import os
+import sys
 import time
 
 def file2table(filename):
@@ -13,7 +14,7 @@ def file2table(filename):
         table.append(row)
     return table
 
-def swap(data):
+def swap_old(data):
     """
     swaps rows and columns always returns table 
     """
@@ -29,16 +30,28 @@ def swap(data):
                 table[i].append('')
     return table
 
+def swap(data):
+    """
+    swaps rows and columns always returns table 
+    """
+    table = []
+    for i in range(len(data[0])):
+        table.append([row[i] for row in data])
+    return table
+
 def get_coordination_measure_no_ties(filename):
+    print ("NO TIES")
     filedata = file2table(filename)
     rhos = []
     # make each ballot a row (instead of a column)
     data = swap(filedata)
     for pair in (list(itertools.combinations(list(range(len(data))),2))):
         rhos.append(get_rho(data[pair[0]],data[pair[1]]))
-    return get_avg(rhos)
+    avg_rhos = sum(rhos)/len(rhos)
+    return avg_rhos
 
 def get_coordination_measure(filename):
+    print ("TIES")
     filedata = file2table(filename)
     toppers = filedata[0]
     factions = {}
@@ -62,8 +75,9 @@ def get_coordination_measure(filename):
         # get rhos w/in this faction
         for pair in (list(itertools.combinations(list(range(len(data))),2))):
             rhos.append(get_rho(data[pair[0]],data[pair[1]]))
-    return get_avg(rhos)
-    #print(file,'{0:f}'.format(get_avg(rhos)))
+    avg_rhos = sum(rhos)/len(rhos)
+    return avg_rhos
+    #print(file,'{0:f}'.format(avg_rhos))
 
 def get_rho(list1,list2):
     cands = sorted(list(set(list1+list2)))
@@ -80,16 +94,27 @@ def get_rho(list1,list2):
     c = len(cands)
     return 1-(float(6*sum_ofDsquared)/(c*(c**2-1)))
 
-def file2ballots(filename):
-    """
-    converts a ballot_set file to a list of ballots (each a list)
-    """
-    return swap(file2table(filename))
+def get_mc(filename):
+    parts = filename.split('/')
+    params = parts[-2]
+    params = subdir.split('.')
+    ties = int(params[2].lstrip('t'))
+    if ties:
+        cm = get_coordination_measure(BASEDIR+'/'+subdir+'/'+file)
+    else:
+        cm = get_coordination_measure_no_ties(BASEDIR+'/'+subdir+'/'+file)
+    return cm 
 
-def get_avg(list):
-    return sum(list)/len(list)
 
 if __name__ == '__main__':
+    BASEDIR = 'ballots'
+    for subdir in os.listdir(BASEDIR):
+        for file in os.listdir(BASEDIR+'/'+subdir):
+            cm = get_mc(BASEDIR+'/'+subdir+'/'+file)
+            print(file, cm)
+
+
+if __name__ == '__xmain__':
     BASEDIR = 'ballots'
     file_count = 0
     for root, dirs, files in os.walk(BASEDIR):
