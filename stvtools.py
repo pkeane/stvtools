@@ -548,7 +548,7 @@ def analyze_profile(profile_data,runs):
     num_cands = int(profile_data['candidates'])
     droop = int(profile_data['droop'])
     votes = int(profile_data['votes'])
-    profile_data['runs'] = runs 
+    profile_data['num_of_runs'] = runs 
     profile_data['client_identifier'] = socket.gethostname()+'/'+str(os.getpid())
 
     csv_data = jsondata2table(profile_data['data'])
