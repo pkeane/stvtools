@@ -549,7 +549,7 @@ def analyze_profile(profile_data,runs):
     droop = int(profile_data['droop'])
     votes = int(profile_data['votes'])
     profile_data['runs'] = runs 
-    profile_data['client_identifier'] = socket.gethostname()+'/'+str(os.getpid)
+    profile_data['client_identifier'] = socket.gethostname()+'/'+str(os.getpid())
 
     csv_data = jsondata2table(profile_data['data'])
 
@@ -579,7 +579,7 @@ def analyze_profile(profile_data,runs):
 
 
 def get_next_profile():
-    hpc_url = "http://dev.laits.utexas.edu/labs/stv/next.json"
+    hpc_url = "http://dev.laits.utexas.edu/labs/stv/profile/next.json"
     response = urllib2.urlopen(hpc_url)
     return json.loads(response.read())
 
