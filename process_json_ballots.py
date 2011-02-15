@@ -35,9 +35,6 @@ def swap(data):
         table.append([row[i] for row in data])
     return table
 
-        
-
-
 if __name__ == "__main__":
     BASEDIR = 'elections'
     for file in os.listdir(BASEDIR):
@@ -45,4 +42,4 @@ if __name__ == "__main__":
         data = json.loads(fh.read())
         print data['ELECTION']['id']
         # print fix_names(data['BALLOTS'])
-        print swap(even_ballot_lengths(data['BALLOTS']))
+        print swap(even_ballot_lengths(fix_names(data['BALLOTS'])))
