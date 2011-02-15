@@ -29,6 +29,16 @@ def even_ballot_lengths(ballotrows):
         ballot.extend(['-' for i in range(diff)])
     return ballotrows
 
+def check_ballots(data):
+    for row in data:
+        check_row = {}
+        for cell in row:
+            if cell not in check_row:
+                check_row[cell] = 0
+            check_row[cell] += 1
+            if check_row[cell] > 1:
+                print "PROBLEM: "+cell
+
 def swap(data):
     table = []
     for i in range(len(data[0])):
@@ -42,4 +52,6 @@ if __name__ == "__main__":
         data = json.loads(fh.read())
         print data['ELECTION']['id']
         # print fix_names(data['BALLOTS'])
-        print swap(even_ballot_lengths(fix_names(data['BALLOTS'])))
+        #print file
+        #print check_ballots(data['BALLOTS'])
+        #print swap(even_ballot_lengths(fix_names(data['BALLOTS'])))
