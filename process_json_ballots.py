@@ -76,12 +76,15 @@ if __name__ == "__main__":
         fh = open(BASEDIR+'/'+file)
         data = json.loads(fh.read())
         year = data['ELECTION']['id']
+        OUTDIR = TARGET+'/'+year
+        if not os.path.exists(OUTDIR):
+            os.makedirs(OUTDIR)
         # print fix_names(data['BALLOTS'])
         # print file
         # print check_ballots(data['BALLOTS'])
         ballotrows = even_ballot_lengths(fix_names(data['BALLOTS']))
-        filename = "{0}-0-0.json".format(year)
-        with open(TARGET+'/'+filename, mode='w') as f:
+        filename = "{0}-x0-y0.json".format(year)
+        with open(OUTDIR+'/'+filename, mode='w') as f:
             json.dump(ballotrows, f)  
         num_y = len(ballotrows)
         num_x = len(ballotrows[0])
@@ -89,7 +92,7 @@ if __name__ == "__main__":
             for x in range(num_x):
                 tweaked = tweak(copy.deepcopy(ballotrows),x+1,y+1)
                 # print diff(ballotrows,tweaked)
-                filename = "{0}-{1}-{2}.json".format(year,x+1,y+1)
-                with open(TARGET+'/'+filename, mode='w') as f:
+                filename = "{0}-x{1}-y{2}.json".format(year,x+1,y+1)
+                with open(OUTDIR+'/'+filename, mode='w') as f:
                     json.dump(tweaked, f)  
                     print "printed {0}".format(filename)
