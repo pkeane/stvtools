@@ -378,6 +378,7 @@ def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,de
 
 def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count):
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
+        n.b. run_count is 0 the first time this is called in function get_loser
     """
     if run_count:
         pass
@@ -389,8 +390,13 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
     # per schwartz p. 7, we only need to check historical
     # steps through step k (current) - 1 (e.g., first round go
     # straight random. run_count is zero indexed, so we add 1
+    # what we are checking here is whether this is out first
+    # pass in first step OR if in an historical pass, that we
+    # only do as many passes as steps which occurred - 1
     if log['step_count'] == run_count+1:
         # for lowest, if points = 0, no further processing is necessary
+        # because no historical review is necessesary
+        # because the cand never got any points in a prev step 
         if  0 == tied_candidates[0].points:
             r = randint(0,len(tied_candidates)-1)
             # log['tie_breaks'].append('*** coin toss ***')
@@ -409,8 +415,10 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
             for cand in tied_candidates:
                 tied_eids.append(cand.eid)
             for ballot in ballots:
+                # "on which the surviving tied candidates are ranked first..."
                 if ballot['data'][0] in tied_eids:
                     considered_ballots.append(ballot)
+            # thus begins process of looking down the ballot
             return second_preference_low_tiebreak(tied_candidates,all_candidates,considered_ballots,log)
 
     historical_step_points = {}
