@@ -41,27 +41,26 @@ def check_ballots(data):
             if check_row[cell] > 1:
                 print "PROBLEM: "+cell
 
-def tweak(ballotrows,x,y):
+def tweak(ballotrows,nb,nr):
     # note x & y are 1 based !!
     # and MUST be >= 1
-    print x,y
-    ballot = ballotrows[y-1]
-    if len(ballot) > x and ballot[x-1] != '-' and ballot[x] != '-':
-        first = ballot[x-1]
-        second = ballot[x]
-        ballotrows[y-1][x] = first 
-        ballotrows[y-1][x-1] = second 
+    ballot = ballotrows[nb-1]
+    if len(ballot) > nr and ballot[nr-1] != '-' and ballot[nr] != '-':
+        first = ballot[nr-1]
+        second = ballot[nr]
+        ballotrows[nb-1][nr] = first 
+        ballotrows[nb-1][nr-1] = second 
     return ballotrows
 
 def diff(ballotrows1,ballotrows2):
     differences = '' 
     for i in range(len(ballotrows1)):
         for j in range(len(ballotrows1[i])):
-            if ballotrows1[i][j] != ballotrows2[i][j]:
-                differences += 'ballot {0} place {1} is different'.format(i,j)+"\n"
+            cand_was = ballotrows1[i][j]
+            cand_is = ballotrows2[i][j]
+            if cand_was != cand_is:
+                differences += 'ballot {0} rank {1} was {2} is now {3}'.format(i,j,cand_was,cand_is)+"\n"
     return differences
-
-
 
 def swap(data):
     table = []
@@ -83,16 +82,20 @@ if __name__ == "__main__":
         # print file
         # print check_ballots(data['BALLOTS'])
         ballotrows = even_ballot_lengths(fix_names(data['BALLOTS']))
-        filename = "{0}-x0-y0.json".format(year)
+        # filename = "{0}-x0-y0.json".format(year)
+        filename = "{0}-no_swap.json".format(year)
         with open(OUTDIR+'/'+filename, mode='w') as f:
             json.dump(ballotrows, f)  
-        num_y = len(ballotrows)
-        num_x = len(ballotrows[0])
-        for y in range(num_y):
-            for x in range(num_x):
-                tweaked = tweak(copy.deepcopy(ballotrows),x+1,y+1)
-                # print diff(ballotrows,tweaked)
-                filename = "{0}-x{1}-y{2}.json".format(year,x+1,y+1)
-                with open(OUTDIR+'/'+filename, mode='w') as f:
-                    json.dump(tweaked, f)  
-                    print "printed {0}".format(filename)
+        num_ballots = len(ballotrows)
+        num_ranked = len(ballotrows[0])
+        for nb in range(num_ballots):
+            for nr in range(num_ranked):
+                tweaked = tweak(copy.deepcopy(ballotrows),nb+1,nr+1)
+                differences = diff(ballotrows,tweaked)
+                if differences:
+                    #print differences
+                    # filename = "{0}-x{1}-y{2}.json".format(year,x+1,y+1)
+                    filename = "{0}-ballot{1}-cand_at_rank{2}_swapped_with_cand_at_rank{3}.json".format(year,nb+1,nr+1,nr+2)
+                    with open(OUTDIR+'/'+filename, mode='w') as f:
+                        json.dump(tweaked, f)  
+                        print "printed {0}".format(filename)
