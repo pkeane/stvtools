@@ -3,12 +3,13 @@ import simplejson as json
 import os
 import sys
 
-def fix_names(data):
+def fix_names(data,name_lookup):
     i = 0
     new_name = {}
     for c in get_cands(data):
         i += 1
-        new_name[c] = 'c'+str(i)
+        # new_name[c] = 'c'+str(i)
+        new_name[c] = name_lookup[c]
     table = []
     for row in data:
         new_row = []
@@ -69,12 +70,16 @@ def swap(data):
     return table
 
 if __name__ == "__main__":
-    TARGET = 'historical'
+    TARGET = 'historical-names'
     BASEDIR = 'elections'
     for file in os.listdir(BASEDIR):
         fh = open(BASEDIR+'/'+file)
         data = json.loads(fh.read())
         year = data['ELECTION']['id']
+        name_lookup = {}
+        import re
+        for c in data['CANDIDATES']:
+            name_lookup[c['EID']] = re.sub('[^a-zA-Z]','',c['Name'])
         if int(year) > 2001:
             OUTDIR = TARGET+'/'+year
             if not os.path.exists(OUTDIR):
@@ -82,7 +87,9 @@ if __name__ == "__main__":
             # print fix_names(data['BALLOTS'])
             # print file
             # print check_ballots(data['BALLOTS'])
-            ballotrows = even_ballot_lengths(fix_names(data['BALLOTS']))
+
+            # print year, fix_names(data['BALLOTS'])
+            ballotrows = even_ballot_lengths(fix_names(data['BALLOTS'],name_lookup))
             # filename = "{0}-x0-y0.json".format(year)
             filename = "{0}-no_swap.json".format(year)
             with open(OUTDIR+'/'+filename, mode='w') as f:

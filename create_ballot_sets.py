@@ -233,6 +233,7 @@ if __name__ == '__main__':
                 print (str(num_random) + output)
                 generate_ballot_set(c,VOTERS,output)
 
+    sys.exit()
     start_time = time.time()
     processed_files = 0
     file_count = 103700 
