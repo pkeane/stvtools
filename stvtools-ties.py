@@ -660,7 +660,7 @@ def analyze_profile(profile_data,runs):
 
     profile_data['avg_top_ties'] = res['avg_top_ties']
     profile_data['avg_bottom_ties'] = res['avg_bottom_ties']
-    profile_data['droop_tie_at_top'] = res['droop_ties_at_top']
+    profile_data['droop_tie_at_top'] = res['droop_tie_at_top']
     profile_data['top_entropy'] = res['top_entropy']
     profile_data['top_factions'] = res['top_factions']
     profile_data['low_point_tie_at_top'] = res['low_point_tie_at_top']
