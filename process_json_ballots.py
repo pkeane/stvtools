@@ -1,5 +1,8 @@
+try:
+    import json
+except:
+    import simplejson as json
 import copy
-import simplejson as json
 import os
 import sys
 
