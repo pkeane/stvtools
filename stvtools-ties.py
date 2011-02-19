@@ -82,7 +82,7 @@ def tally_csv(bals,cands,seats,droop,filename):
     (ballots,candidates,committee,logs) = run_step(ballots,candidates,committee,CONFIG,droop,logs)
     return logs
 
-def run_csv_tally(csv_data,seats,runs,droop,filename):
+def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     """ This is a convenience function that runs multiple tallies over a 
     csv data set.  The csv should have lines of equal length.  Ballots
     are columns, rows are "places" (first row is first place on each
@@ -90,13 +90,13 @@ def run_csv_tally(csv_data,seats,runs,droop,filename):
     cell values represent EID and Name (no distinction).  
     """
     cands = get_candidates(csv_data) 
-    swapped = swap(csv_data) 
+    # swapped = swap(csv_data) 
     was_elected = {}
     top_ties = 0
     bottom_ties = 0
     for i in range(runs):
-        print
-        print "RUNNING PASS ",i
+        # print
+        # print "RUNNING PASS ",i
         # crazy Python pass-by behavior makes this not work:
         # result = tally_csv(swapped,cands,seats,droop,filename)
         result = tally_csv(swap(csv_data),cands,seats,droop,filename)
@@ -131,8 +131,59 @@ def run_csv_tally(csv_data,seats,runs,droop,filename):
         probability = float(was_elected[eid])/runs
         sum_of_logs += probability*math.log(probability)
     res['entropy'] = abs(sum_of_logs)
+
+    res = get_top_place_data(csv_data,droop,res)
     
     return res 
+
+def get_top_place_data(csv_data,droop,res):
+    toppers = csv_data[0]
+    votes = {}
+    for i in range(len(toppers)):
+        if toppers[i] not in votes:
+            votes[toppers[i]] = 0 
+        votes[toppers[i]] += 1
+
+    sum_of_squares = 0
+    sum_of_logs = 0
+    for eid in votes:
+        perc = float(votes[eid])/len(toppers)
+        sum_of_logs += perc*math.log(perc)
+        sum_of_squares += perc**2 
+    res['top_entropy'] = abs(sum_of_logs)
+    res['top_factions'] = 1/sum_of_squares
+
+    most_top_place_votes = max(votes.values()) 
+    least_top_place_votes = min(votes.values()) 
+
+    # dict: key = vote count ; val = num_occurrences
+    dict_of_vote_counts = {}
+    for eid in votes:
+        num_votes = votes[eid]
+        if num_votes not in dict_of_vote_counts:
+            dict_of_vote_counts[num_votes] = 0
+        dict_of_vote_counts[num_votes] += 1
+
+    res['droop_tie_at_top'] = 0
+    res['low_point_tie_at_top'] = 0
+
+    if 100*most_top_place_votes >= droop:
+        res['droop_at_top'] = 1
+        if dict_of_vote_counts[most_top_place_votes] > 1:
+            res['droop_tie_at_top'] = 1
+    else:
+        # two cases generate low_point_tie_at_top
+        if len(votes) < len(get_candidates(csv_data)) - 1: 
+            # meaning at least two folks were not on top
+            res['low_point_tie_at_top'] = 1
+        if dict_of_vote_counts[least_top_place_votes] > 1: 
+            # meaning there was more than one occurrence
+            # of least_top_place_votes in top place
+            res['low_point_tie_at_top'] = 1
+
+        res['droop_at_top'] = 0
+
+    return res
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     """ This is the "master" function.  It can be called once, and will recurse
@@ -318,15 +369,9 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
     """
     if run_count:
-        # this is an INNER tie
-        pass
-        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
     else:
-        print
-        print "AT STEP COUNT ",log['step_count'],"FILE ",log['filename']
-        print "TOP TIE ",tied_candidates
-        log['total_top_ties'] += 1
-        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
 
     # per schwartz p. 7, we only need to check historical
@@ -334,9 +379,11 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     # straight random. run_count is zero indexed, so we add 1
     if log['step_count'] == run_count+1:
         r = randint(0,len(tied_candidates)-1)
-        # NOTE!!!!!!!!!!!!!!!!!!!! 
-        # r = 0 
-        # log['tie_breaks'].append('*** coin toss ***')
+        log['tie_breaks'].append('*** coin toss ***')
+        # print
+        # print "AT STEP COUNT ",log['step_count'],"FILE ",log['filename']
+        # print "TOP TIE ",tied_candidates
+        log['total_top_ties'] += 1
         return (tied_candidates[r],log)
 
     historical_step_points = {}
@@ -362,6 +409,10 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
 def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,depth=1):
     if depth == len(ballots[0]['data']):
         r = randint(0,len(tied_candidates)-1)
+        # print
+        # print "AT STEP COUNT ",log['step_count'],"FILE ",log['filename']
+        # print "BOTTOM TIE ",tied_candidates
+        log['total_bottom_ties'] += 1
         log['tie_breaks'].append('**** coin toss ****')
         return (tied_candidates[r],log)
     else:
@@ -413,14 +464,9 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
         n.b. run_count is 0 the first time this is called in function get_loser
     """
     if run_count:
-        pass
-        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
     else:
-        print
-        print "AT STEP COUNT ",log['step_count'],"FILE ",log['filename']
-        print "BOTTOM TIE ",tied_candidates
-        log['total_bottom_ties'] += 1
-        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
     # per schwartz p. 7, we only need to check historical
     # steps through step k (current) - 1 (e.g., first round go
@@ -434,7 +480,11 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
         # because the cand never got any points in a prev step 
         if  0 == tied_candidates[0].points:
             r = randint(0,len(tied_candidates)-1)
-            # log['tie_breaks'].append('*** coin toss ***')
+            # print
+            # print "AT STEP COUNT ",log['step_count'],"FILE ",log['filename']
+            # print "BOTTOM TIE ",tied_candidates
+            log['total_bottom_ties'] += 1
+            log['tie_breaks'].append('*** coin toss ***')
             return (tied_candidates[r],log)
         else:
             """
@@ -598,7 +648,7 @@ def analyze_profile(profile_data,runs):
 
     start = time.time()
     # need filename ....
-    res = run_csv_tally(csv_data,seats,runs,droop,filename)
+    res = run_csv_tally(csv_data,seats,runs,droop)
 
     dur = time.time() - start
     profile_data['tally_duration_secs'] = dur 
