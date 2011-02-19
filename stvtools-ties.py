@@ -658,6 +658,13 @@ def analyze_profile(profile_data,runs):
     profile_data['entropy'] = res['entropy']
     profile_data['measure_of_coord'] = get_mc(csv_data,ties)
 
+    profile_data['avg_top_ties'] = res['avg_top_ties']
+    profile_data['avg_bottom_ties'] = res['avg_bottom_ties']
+    profile_data['droop_tie_at_top'] = res['droop_ties_at_top']
+    profile_data['top_entropy'] = res['top_entropy']
+    profile_data['top_factions'] = res['top_factions']
+    profile_data['low_point_tie_at_top'] = res['low_point_tie_at_top']
+    profile_data['droop_at_top'] = res['droop_at_top']
     profile_json = json.dumps(profile_data)
 
     h = httplib.HTTPConnection('dev.laits.utexas.edu',80)
@@ -673,11 +680,11 @@ def analyze_profile(profile_data,runs):
 
 
 def get_next_profile():
-    hpc_url = "http://dev.laits.utexas.edu/labs/stv/profile/next.json"
+    hpc_url = "http://dev.laits.utexas.edu/labs/stv_ties/profile/next.json"
     response = urllib2.urlopen(hpc_url)
     return json.loads(response.read())
 
-if __name__ == '__main__':
+if __name__ == '__Xmain__':
     BASEDIR = 'ballots'
     outfile = 'out'
     fh = open(outfile,"w")
@@ -706,7 +713,7 @@ if __name__ == '__main__':
             print("\nresults:")
             print(run_csv_tally(file2table(filepath),seats,runs,droop,file))
 
-if __name__ == '__xmain__':
+if __name__ == '__main__':
 
     runs = 1000
     status = '200'
