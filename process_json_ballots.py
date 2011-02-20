@@ -11,8 +11,8 @@ def fix_names(data,name_lookup):
     new_name = {}
     for c in get_cands(data):
         i += 1
-        # new_name[c] = 'c'+str(i)
-        new_name[c] = name_lookup[c]
+        new_name[c] = 'c'+str(i)
+        # new_name[c] = name_lookup[c]
     table = []
     for row in data:
         new_row = []
@@ -73,7 +73,7 @@ def swap(data):
     return table
 
 if __name__ == "__main__":
-    TARGET = 'historical-names'
+    TARGET = 'historical'
     BASEDIR = 'elections'
     for file in os.listdir(BASEDIR):
         fh = open(BASEDIR+'/'+file)

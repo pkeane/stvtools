@@ -60,7 +60,7 @@ def calculate_droop(num_of_ballots,seats,initial_ballot_value):
     """
     return (initial_ballot_value*num_of_ballots//(seats+1))+1 # // means trunc
 
-def tally_csv(bals,cands,seats,droop):
+def tally_csv(bals,cands,seats,droop,filename):
     CONFIG = {}
     CONFIG['seats'] = seats 
     CONFIG['minimum_full_professors'] = 0 
@@ -81,7 +81,7 @@ def tally_csv(bals,cands,seats,droop):
     (ballots,candidates,committee,logs) = run_step(ballots,candidates,committee,CONFIG,droop,logs)
     return logs
 
-def run_csv_tally(csv_data,seats,runs,droop):
+def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     """ This is a convenience function that runs multiple tallies over a 
     csv data set.  The csv should have lines of equal length.  Ballots
     are columns, rows are "places" (first row is first place on each
@@ -94,7 +94,7 @@ def run_csv_tally(csv_data,seats,runs,droop):
     for i in range(runs):
         # crazy Python pass-by behavior makes this not work:
         # result = tally_csv(swapped,cands,seats,droop)
-        result = tally_csv(swap(csv_data),cands,seats,droop)
+        result = tally_csv(swap(csv_data),cands,seats,droop,filename)
         last = result.pop()
         for cand in last['committee']:
             if cand.eid in was_elected:
@@ -461,6 +461,10 @@ def jsondata2table(jsondata):
     return table
 
 
+def jsonfile2table(filename):
+    fh = open(filename)
+    return swap(json.loads(fh.read())) 
+
 def file2table(filename):
     fh = open(filename)
     table = []
@@ -482,13 +486,14 @@ def swap(data):
     return table
 
 def get_candidates(data):
-  cands = {}
-  for row in data:
-    for cell in row:
-      cands[cell] = 1
-  cand_list = list(cands.keys())
-  cand_list.sort()
-  return cand_list
+    cands = {}
+    for row in data:
+        for cell in row:
+            if '-' != cell:
+                cands[cell] = 1
+    cand_list = list(cands.keys())
+    cand_list.sort()
+    return cand_list
 
 # following are functions for determining measure of coordination
 
@@ -562,7 +567,7 @@ def analyze_profile(profile_data,runs):
     csv_data = jsondata2table(profile_data['data'])
 
     start = time.time()
-    res = run_csv_tally(csv_data,seats,runs,droop)
+    res = run_csv_tally(csv_data,seats,runs,droop,filename)
 
     dur = time.time() - start
     profile_data['tally_duration_secs'] = dur 
@@ -591,7 +596,44 @@ def get_next_profile():
     response = urllib2.urlopen(hpc_url)
     return json.loads(response.read())
 
+def get_election_info(year):
+    filename = 'elections/'+year+'_election.json'
+    fh = open(filename)
+    data = json.loads(fh.read())
+    return (int(data['ELECTION']['seats']),len(data['CANDIDATES']),len(data['BALLOTS']))
+
+def e():
+    sys.exit()
+
 if __name__ == '__main__':
+    BASEDIR = 'historical-names'
+    outfile = 'out'
+    fh = open(outfile,"w")
+    for subdir in os.listdir(BASEDIR):
+        year = subdir
+        (seats,cands,votes) = get_election_info(year)
+        for file in os.listdir(BASEDIR+'/'+subdir):
+            filepath = BASEDIR+'/'+subdir+'/'+file
+            csv_data = jsonfile2table(filepath)
+    
+            # print get_candidates(csv_data)
+            # e()
+
+            droop = calculate_droop(votes,seats,100)
+            runs = 1000
+
+            print('reading file "'+file+'"')
+            print(str(cands)+" candidates")
+            print(str(seats)+" seats")
+            print("droop is "+str(droop))
+
+            print("\nresults:")
+            print(run_csv_tally(jsonfile2table(filepath),seats,runs,droop,file))
+
+
+
+
+if __name__ == '__Xmain__':
 
     runs = 1000
     status = '200'
