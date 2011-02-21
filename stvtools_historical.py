@@ -135,6 +135,7 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
 
 def get_top_place_data(csv_data,droop,res):
     toppers = csv_data[0]
+    res['toppers'] = ','.join(toppers)
     votes = {}
     for i in range(len(toppers)):
         if toppers[i] not in votes:
@@ -148,7 +149,7 @@ def get_top_place_data(csv_data,droop,res):
         sum_of_logs += perc*math.log(perc)
         sum_of_squares += perc**2 
     res['top_entropy'] = abs(sum_of_logs)
-    res['top_factions'] = 1/sum_of_squares
+    res['top_effective_factions'] = 1/sum_of_squares
 
     most_top_place_votes = max(votes.values()) 
     least_top_place_votes = min(votes.values()) 
@@ -161,6 +162,9 @@ def get_top_place_data(csv_data,droop,res):
             dict_of_vote_counts[num_votes] = 0
         dict_of_vote_counts[num_votes] += 1
 
+    res['number_of_factions'] = len([x in dict_of_vote_counts if dict_of_vote_counts[x] > 1])
+    res['most_top_place_votes'] = most_top_place_votes
+    res['number_of_top_ties'] = dict_of_vote_counts[most_top_place_votes]
     res['droop_tie_at_top'] = 0
     res['low_point_tie_at_top'] = 0
 
@@ -181,6 +185,49 @@ def get_top_place_data(csv_data,droop,res):
         res['droop_at_top'] = 0
 
     return res
+
+def get_coordination_measure(filedata):
+    print "THISS NEEDS WORK __ MUST INCLUDE ALL FACTIONS"
+    toppers = filedata[0]
+    factions = {}
+    for i in range(len(toppers)):
+        if toppers[i] not in factions:
+            factions[toppers[i]] = []
+        factions[toppers[i]].append(i)
+    votes_per_tie = max([len(x) for x in factions.values()])
+    # get only factions that are in fact a set of tied ballots
+    sets = [fac for fac in factions.values() if len(fac) == votes_per_tie]
+    # print("FACTIONS: ", sets)
+    rhos = []
+    # create a faction data set
+    # make each ballot a row (instead of a column)
+    swapped_data = swap(filedata)
+    for set in sets:
+        data = []
+        for j in set:
+            data.append(swapped_data[j])
+        # data is now a faction of votes 
+        # get rhos w/in this faction
+        for pair in (list(itertools.combinations(list(range(len(data))),2))):
+            rhos.append(get_rho(data[pair[0]],data[pair[1]]))
+    avg_rhos = sum(rhos)/len(rhos)
+    return avg_rhos
+    #print(file,'{0:f}'.format(avg_rhos))
+
+def get_rho(list1,list2):
+    cands = sorted(list(set(list1+list2)))
+    sum_ofDsquared = 0
+    for cand in cands:
+        rank1 = list1.index(cand)
+        rank2 = list2.index(cand)
+        # print (rank1,rank2)
+        D = (rank1-rank2)
+        Dsquared = D**2
+        sum_ofDsquared += Dsquared
+    
+    # print(sum_ofDsquared)
+    c = len(cands)
+    return 1-(float(6*sum_ofDsquared)/(c*(c**2-1)))
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     """ This is the "master" function.  It can be called once, and will recurse
