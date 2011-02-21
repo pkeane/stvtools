@@ -63,6 +63,7 @@ def calculate_droop(num_of_ballots,seats,initial_ballot_value):
 def tally_csv(bals,cands,seats,droop,filename):
     CONFIG = {}
     CONFIG['seats'] = seats 
+    CONFIG['filename'] = filename 
     CONFIG['minimum_full_professors'] = 0 
     CONFIG['initial_ballot_value'] = 100 
     ballots = [] 
@@ -91,6 +92,8 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     cands = get_candidates(csv_data) 
     swapped = swap(csv_data) 
     was_elected = {}
+    top_ties = 0
+    bottom_ties = 0
     for i in range(runs):
         # crazy Python pass-by behavior makes this not work:
         # result = tally_csv(swapped,cands,seats,droop)
@@ -101,20 +104,83 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
                 was_elected[cand.eid] += 1
             else:
                 was_elected[cand.eid] = 1
+        top_ties += last['total_top_ties']
+        # print "TT"+str(top_ties)
+        bottom_ties += last['total_bottom_ties']
+        # print "BT"+str(bottom_ties)
+        filename = last['filename']
 
     res = {}
+
+    res['filename'] = filename 
+    res['top_ties'] = top_ties
+    res['bottom_ties'] = bottom_ties
+    res['avg_top_ties'] = float(top_ties)/runs
+    res['avg_bottom_ties'] = float(bottom_ties)/runs
 
     res['slate'] = json.dumps(was_elected)
     res['num_always_elected'] = was_elected.values().count(runs)
     res['num_elected'] = len(was_elected.items())
     
+    # logs are logarithms here not our output log
     sum_of_logs = 0
     for eid in was_elected:
         probability = float(was_elected[eid])/runs
         sum_of_logs += probability*math.log(probability)
     res['entropy'] = abs(sum_of_logs)
     
+    res = get_top_place_data(csv_data,droop,res)
+
     return res 
+
+def get_top_place_data(csv_data,droop,res):
+    toppers = csv_data[0]
+    votes = {}
+    for i in range(len(toppers)):
+        if toppers[i] not in votes:
+            votes[toppers[i]] = 0 
+        votes[toppers[i]] += 1
+
+    sum_of_squares = 0
+    sum_of_logs = 0
+    for eid in votes:
+        perc = float(votes[eid])/len(toppers)
+        sum_of_logs += perc*math.log(perc)
+        sum_of_squares += perc**2 
+    res['top_entropy'] = abs(sum_of_logs)
+    res['top_factions'] = 1/sum_of_squares
+
+    most_top_place_votes = max(votes.values()) 
+    least_top_place_votes = min(votes.values()) 
+
+    # dict: key = vote count ; val = num_occurrences
+    dict_of_vote_counts = {}
+    for eid in votes:
+        num_votes = votes[eid]
+        if num_votes not in dict_of_vote_counts:
+            dict_of_vote_counts[num_votes] = 0
+        dict_of_vote_counts[num_votes] += 1
+
+    res['droop_tie_at_top'] = 0
+    res['low_point_tie_at_top'] = 0
+
+    if 100*most_top_place_votes >= droop:
+        res['droop_at_top'] = 1
+        if dict_of_vote_counts[most_top_place_votes] > 1:
+            res['droop_tie_at_top'] = 1
+    else:
+        # two cases generate low_point_tie_at_top
+        if len(votes) < len(get_candidates(csv_data)) - 1: 
+            # meaning at least two folks were not on top
+            res['low_point_tie_at_top'] = 1
+        if dict_of_vote_counts[least_top_place_votes] > 1: 
+            # meaning there was more than one occurrence
+            # of least_top_place_votes in top place
+            res['low_point_tie_at_top'] = 1
+
+        res['droop_at_top'] = 0
+
+    return res
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     """ This is the "master" function.  It can be called once, and will recurse
@@ -130,10 +196,20 @@ def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
             no_votes.append(eid)
 
     no_votes.sort()
+    log['filename'] = config['filename'] 
     log['no_votes'] = no_votes 
     log['ballot_tally'] = sorted(list(ballot_tally.items()),key=itemgetter(1),reverse=True)
     log['droop'] = droop
     log['tie_breaks'] = [] 
+
+    if step_count:
+        #print 'STEP COUNT '+str(step_count)
+        log['total_top_ties'] = logs[step_count-1]['total_top_ties']
+        log['total_bottom_ties'] = logs[step_count-1]['total_bottom_ties']
+    else:
+        log['total_top_ties'] = 0 
+        log['total_bottom_ties'] = 0 
+
     # exit condition
     if len(committee) == seats: 
         return (ballots,candidates,committee,logs)
@@ -290,11 +366,9 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     """ returns ONE candidate; 'run_count' is incremented w/ each pass
     """
     if run_count:
-        pass
-        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
     else:
-        pass
-        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
 
     # per schwartz p. 7, we only need to check historical
@@ -302,9 +376,11 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
     # straight random. run_count is zero indexed, so we add 1
     if log['step_count'] == run_count+1:
         r = randint(0,len(tied_candidates)-1)
-        # NOTE!!!!!!!!!!!!!!!!!!!! 
-        # r = 0 
-        # log['tie_breaks'].append('*** coin toss ***')
+        log['tie_breaks'].append('*** coin toss ***')
+        # print
+        # print "AT STEP COUNT ",log['step_count'],"FILE ",log['filename']
+        # print "TOP TIE ",tied_candidates
+        log['total_top_ties'] += 1
         return (tied_candidates[r],log)
 
     historical_step_points = {}
@@ -330,6 +406,10 @@ def break_most_points_tie(tied_candidates,all_candidates,log,run_count):
 def second_preference_low_tiebreak(tied_candidates,all_candidates,ballots,log,depth=1):
     if depth == len(ballots[0]['data']):
         r = randint(0,len(tied_candidates)-1)
+        # print
+        # print "AT STEP COUNT ",log['step_count'],"FILE ",log['filename']
+        # print "BOTTOM TIE ",tied_candidates
+        log['total_bottom_ties'] += 1
         log['tie_breaks'].append('**** coin toss ****')
         return (tied_candidates[r],log)
     else:
@@ -381,11 +461,9 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
         n.b. run_count is 0 the first time this is called in function get_loser
     """
     if run_count:
-        pass
-        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates)+' at step '+str(run_count))
     else:
-        pass
-        # log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
+        log['tie_breaks'].append(' tie between: '+', '.join(c.eid for c in tied_candidates))
 
     # per schwartz p. 7, we only need to check historical
     # steps through step k (current) - 1 (e.g., first round go
@@ -399,7 +477,11 @@ def break_lowest_points_tie(tied_candidates,all_candidates,ballots,log,run_count
         # because the cand never got any points in a prev step 
         if  0 == tied_candidates[0].points:
             r = randint(0,len(tied_candidates)-1)
-            # log['tie_breaks'].append('*** coin toss ***')
+            # print
+            # print "AT STEP COUNT ",log['step_count'],"FILE ",log['filename']
+            # print "BOTTOM TIE ",tied_candidates
+            log['total_bottom_ties'] += 1
+            log['tie_breaks'].append('*** coin toss ***')
             return (tied_candidates[r],log)
         else:
             """
@@ -577,6 +659,13 @@ def analyze_profile(profile_data,runs):
     profile_data['entropy'] = res['entropy']
     profile_data['measure_of_coord'] = get_mc(csv_data,ties)
 
+    profile_data['avg_top_ties'] = res['avg_top_ties']
+    profile_data['avg_bottom_ties'] = res['avg_bottom_ties']
+    profile_data['droop_tie_at_top'] = res['droop_tie_at_top']
+    profile_data['top_entropy'] = res['top_entropy']
+    profile_data['top_factions'] = res['top_factions']
+    profile_data['low_point_tie_at_top'] = res['low_point_tie_at_top']
+    profile_data['droop_at_top'] = res['droop_at_top']
     profile_json = json.dumps(profile_data)
 
     h = httplib.HTTPConnection('dev.laits.utexas.edu',80)
@@ -604,6 +693,11 @@ def get_election_info(year):
 
 def e():
     sys.exit()
+
+
+
+
+
 
 if __name__ == '__main__':
     BASEDIR = 'historical-names'

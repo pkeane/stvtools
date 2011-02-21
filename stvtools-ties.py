@@ -567,13 +567,14 @@ def swap(data):
     return table
 
 def get_candidates(data):
-  cands = {}
-  for row in data:
-    for cell in row:
-      cands[cell] = 1
-  cand_list = list(cands.keys())
-  cand_list.sort()
-  return cand_list
+    cands = {}
+    for row in data:
+        for cell in row:
+            if '-' != cell:
+                cands[cell] = 1
+    cand_list = list(cands.keys())
+    cand_list.sort()
+    return cand_list
 
 # following are functions for determining measure of coordination
 
