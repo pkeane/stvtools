@@ -9,6 +9,7 @@ import httplib
 import itertools
 import math
 import optparse
+import pickle
 import os
 import re
 import socket
@@ -121,7 +122,6 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     res['X'] = result.group('X')
     res['Z'] = result.group('Z')
 
-    res['top_ties'] = top_ties
     res['bottom_ties'] = bottom_ties
     res['avg_top_ties'] = float(top_ties)/runs
     res['avg_bottom_ties'] = float(bottom_ties)/runs
@@ -647,16 +647,21 @@ def get_rho(list1,list2,all_cands):
     #cands = sorted(list(set(list1+list2)))
     sum_ofDsquared = 0
 
+#    print list1
+#    print len(list1)
+#    print list2
+#    print len(list2)
+
     list1_avg_unused_rank = 0 
     list2_avg_unused_rank = 0 
 
-    # pathc incomplte ballots with avg of unused ranks
+    # patch incomplte ballots with avg of unused ranks
     if len(all_cands) != len(list1):
         #list1_avg_unused_rank = sum(list(range(len(list1),len(all_cands))))/(len(all_cands)-len(list1))
-        list1_avg_unused_rank = (len(all_cands)+len(list1))/float(2)
+        list1_avg_unused_rank = (len(all_cands)+len(list1)-1)/float(2)
     if len(all_cands) != len(list2):
         #list2_avg_unused_rank = sum(list(range(len(list2),len(all_cands))))/(len(all_cands)-len(list2))
-        list2_avg_unused_rank = (len(all_cands)+len(list2))/float(2)
+        list2_avg_unused_rank = (len(all_cands)+len(list2)-1)/float(2)
 
     for cand in all_cands:
         if cand in list1:
@@ -669,7 +674,7 @@ def get_rho(list1,list2,all_cands):
         else:
             rank2 = list2_avg_unused_rank
 
-        # print (rank1,rank2)
+#        print (rank1,rank2)
         D = (rank1-rank2)
         Dsquared = D**2
         sum_ofDsquared += Dsquared
@@ -739,6 +744,18 @@ def get_election_info(year):
     fh = open(filename)
     data = json.loads(fh.read())
     return (int(data['ELECTION']['seats']),len(data['CANDIDATES']),len(data['BALLOTS']))
+
+# deprecated
+def get_tie_strings(list,log):
+    set = []
+    for cand in sorted(list,key=lambda cand: cand.eid):
+        set.append(cand.eid)
+        set.append(cand.points)
+    ts = json.dumps(set)
+    if ts not in log['tie_strings']:
+        log['tie_strings'][ts] = 0
+    log['tie_strings'][ts] += 1
+    return log
 
 def e():
     sys.exit()

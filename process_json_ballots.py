@@ -89,7 +89,8 @@ if __name__ == "__main__":
             # print year, fix_names(data['BALLOTS'])
             ballotrows = even_ballot_lengths(fix_names(data['BALLOTS']))
             # filename = "{0}-x0-y0.json".format(year)
-            filename = "{0}-no_swap.json".format(year)
+            #filename = "{0}-no_swap.json".format(year)
+            filename = "{0}-X0-Z0.json".format(year)
             with open(OUTDIR+'/'+filename, mode='w') as f:
                 json.dump(ballotrows, f)  
             num_ballots = len(ballotrows)

@@ -127,10 +127,19 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     
     # logs are logarithms here not our output log
     sum_of_logs = 0
+    probs = {}
     for eid in was_elected:
         probability = float(was_elected[eid])/runs
+        probs[eid] = probability
         sum_of_logs += probability*math.log(probability)
     res['entropy'] = abs(sum_of_logs)
+
+    for eid in cands:
+        if eid not in probs:
+            probs[eid] = 0
+
+    res['probabilities'] = json.dumps(probs)
+    res['measure_of_coord'] = get_coordination_measure_no_ties(csv_data)
 
     res = get_top_place_data(csv_data,droop,res)
     
@@ -138,6 +147,7 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
 
 def get_top_place_data(csv_data,droop,res):
     toppers = csv_data[0]
+    res['toppers'] = ','.join(toppers)
     votes = {}
     for i in range(len(toppers)):
         if toppers[i] not in votes:
@@ -151,7 +161,7 @@ def get_top_place_data(csv_data,droop,res):
         sum_of_logs += perc*math.log(perc)
         sum_of_squares += perc**2 
     res['top_entropy'] = abs(sum_of_logs)
-    res['top_factions'] = 1/sum_of_squares
+    res['top_effective_factions'] = 1/sum_of_squares
 
     most_top_place_votes = max(votes.values()) 
     least_top_place_votes = min(votes.values()) 
@@ -164,6 +174,11 @@ def get_top_place_data(csv_data,droop,res):
             dict_of_vote_counts[num_votes] = 0
         dict_of_vote_counts[num_votes] += 1
 
+    # number of folks tied at top
+    res['number_of_factions'] = len([x for x in dict_of_vote_counts if dict_of_vote_counts[x] > 1])
+    res['most_top_place_votes'] = most_top_place_votes
+    # number of folks tied at top w/ most top place votes
+    res['number_of_top_ties'] = dict_of_vote_counts[most_top_place_votes]
     res['droop_tie_at_top'] = 0
     res['low_point_tie_at_top'] = 0
 
@@ -638,7 +653,6 @@ def get_mc(data,ties):
 
 def analyze_profile(profile_data,runs):
     seats = int(profile_data['seats'])
-    ties = int(profile_data['ties'])
     num_cands = int(profile_data['candidates'])
     droop = int(profile_data['droop'])
     votes = int(profile_data['votes'])
@@ -652,20 +666,24 @@ def analyze_profile(profile_data,runs):
     res = run_csv_tally(csv_data,seats,runs,droop)
 
     dur = time.time() - start
-    profile_data['tally_duration_secs'] = dur 
-    profile_data['slate'] = res['slate']
-    profile_data['num_elected'] = res['num_elected']
-    profile_data['num_always_elected'] = res['num_always_elected']
-    profile_data['entropy'] = res['entropy']
-    profile_data['measure_of_coord'] = get_mc(csv_data,ties)
 
-    profile_data['avg_top_ties'] = res['avg_top_ties']
-    profile_data['avg_bottom_ties'] = res['avg_bottom_ties']
-    profile_data['droop_tie_at_top'] = res['droop_tie_at_top']
-    profile_data['top_entropy'] = res['top_entropy']
-    profile_data['top_factions'] = res['top_factions']
-    profile_data['low_point_tie_at_top'] = res['low_point_tie_at_top']
-    profile_data['droop_at_top'] = res['droop_at_top']
+    res['tally_duration_secs'] = dur 
+
+    for key in res:
+        profile_data[key] = res[key]
+
+#    profile_data['slate'] = res['slate']
+#    profile_data['num_elected'] = res['num_elected']
+#    profile_data['num_always_elected'] = res['num_always_elected']
+#    profile_data['entropy'] = res['entropy']
+#    profile_data['avg_top_ties'] = res['avg_top_ties']
+#    profile_data['avg_bottom_ties'] = res['avg_bottom_ties']
+#    profile_data['droop_tie_at_top'] = res['droop_tie_at_top']
+#    profile_data['top_entropy'] = res['top_entropy']
+#    profile_data['top_factions'] = res['top_factions']
+#    profile_data['low_point_tie_at_top'] = res['low_point_tie_at_top']
+#    profile_data['droop_at_top'] = res['droop_at_top']
+
     profile_json = json.dumps(profile_data)
 
     h = httplib.HTTPConnection('dev.laits.utexas.edu',80)
