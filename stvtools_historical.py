@@ -10,6 +10,7 @@ import itertools
 import math
 import optparse
 import os
+import re
 import socket
 import string
 import sys
@@ -113,6 +114,13 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     res = {}
 
     res['filename'] = filename 
+
+    regexp = re.compile(r"(?P<year>20[0-9]*)-X(?P<X>[0-9]*)-Z(?P<Z>[0-9]*).json")
+    result = regexp.search(file)
+    year = result.group('year')
+    res['X'] = result.group('X')
+    res['Z'] = result.group('Z')
+
     res['top_ties'] = top_ties
     res['bottom_ties'] = bottom_ties
     res['avg_top_ties'] = float(top_ties)/runs
@@ -124,11 +132,20 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     
     # logs are logarithms here not our output log
     sum_of_logs = 0
+    probs = {}
     for eid in was_elected:
         probability = float(was_elected[eid])/runs
+        probs[eid] = probability
         sum_of_logs += probability*math.log(probability)
     res['entropy'] = abs(sum_of_logs)
     
+    for eid in cands:
+        if eid not in probs:
+            probs[eid] = 0
+
+    res['probabilities'] = json.dumps(probs)
+    res['measure_of_coord'] = get_coordination_measure(csv_data)
+
     res = get_top_place_data(csv_data,droop,res)
 
     return res 
@@ -162,7 +179,7 @@ def get_top_place_data(csv_data,droop,res):
             dict_of_vote_counts[num_votes] = 0
         dict_of_vote_counts[num_votes] += 1
 
-    res['number_of_factions'] = len([x in dict_of_vote_counts if dict_of_vote_counts[x] > 1])
+    res['number_of_factions'] = len([x for x in dict_of_vote_counts if dict_of_vote_counts[x] > 1])
     res['most_top_place_votes'] = most_top_place_votes
     res['number_of_top_ties'] = dict_of_vote_counts[most_top_place_votes]
     res['droop_tie_at_top'] = 0
@@ -185,49 +202,6 @@ def get_top_place_data(csv_data,droop,res):
         res['droop_at_top'] = 0
 
     return res
-
-def get_coordination_measure(filedata):
-    print "THISS NEEDS WORK __ MUST INCLUDE ALL FACTIONS"
-    toppers = filedata[0]
-    factions = {}
-    for i in range(len(toppers)):
-        if toppers[i] not in factions:
-            factions[toppers[i]] = []
-        factions[toppers[i]].append(i)
-    votes_per_tie = max([len(x) for x in factions.values()])
-    # get only factions that are in fact a set of tied ballots
-    sets = [fac for fac in factions.values() if len(fac) == votes_per_tie]
-    # print("FACTIONS: ", sets)
-    rhos = []
-    # create a faction data set
-    # make each ballot a row (instead of a column)
-    swapped_data = swap(filedata)
-    for set in sets:
-        data = []
-        for j in set:
-            data.append(swapped_data[j])
-        # data is now a faction of votes 
-        # get rhos w/in this faction
-        for pair in (list(itertools.combinations(list(range(len(data))),2))):
-            rhos.append(get_rho(data[pair[0]],data[pair[1]]))
-    avg_rhos = sum(rhos)/len(rhos)
-    return avg_rhos
-    #print(file,'{0:f}'.format(avg_rhos))
-
-def get_rho(list1,list2):
-    cands = sorted(list(set(list1+list2)))
-    sum_ofDsquared = 0
-    for cand in cands:
-        rank1 = list1.index(cand)
-        rank2 = list2.index(cand)
-        # print (rank1,rank2)
-        D = (rank1-rank2)
-        Dsquared = D**2
-        sum_ofDsquared += Dsquared
-    
-    # print(sum_ofDsquared)
-    c = len(cands)
-    return 1-(float(6*sum_ofDsquared)/(c*(c**2-1)))
 
 def run_step(ballots,candidates,committee,config,droop,logs,step_count=0):
     """ This is the "master" function.  It can be called once, and will recurse
@@ -635,16 +609,21 @@ def get_coordination_measure_no_ties(filedata):
     avg_rhos = sum(rhos)/len(rhos)
     return avg_rhos
 
+# updated to include all factions
 def get_coordination_measure(filedata):
     toppers = filedata[0]
+    all_cands = get_candidates(filedata)
     factions = {}
+    # we are getting the INDEX (i) of the ballots here
     for i in range(len(toppers)):
         if toppers[i] not in factions:
             factions[toppers[i]] = []
         factions[toppers[i]].append(i)
     votes_per_tie = max([len(x) for x in factions.values()])
     # get only factions that are in fact a set of tied ballots
-    sets = [fac for fac in factions.values() if len(fac) == votes_per_tie]
+    # sets = [fac for fac in factions.values() if len(fac) == votes_per_tie]
+    # include all factions
+    sets = [fac for fac in factions.values() if len(fac) > 1 ]
     # print("FACTIONS: ", sets)
     rhos = []
     # create a faction data set
@@ -657,24 +636,46 @@ def get_coordination_measure(filedata):
         # data is now a faction of votes 
         # get rhos w/in this faction
         for pair in (list(itertools.combinations(list(range(len(data))),2))):
-            rhos.append(get_rho(data[pair[0]],data[pair[1]]))
+            rhos.append(get_rho(data[pair[0]],data[pair[1]],all_cands))
     avg_rhos = sum(rhos)/len(rhos)
     return avg_rhos
     #print(file,'{0:f}'.format(avg_rhos))
 
-def get_rho(list1,list2):
-    cands = sorted(list(set(list1+list2)))
+def get_rho(list1,list2,all_cands):
+    list1 = [x for x in list1 if x != '-']
+    list2 = [x for x in list2 if x != '-']
+    #cands = sorted(list(set(list1+list2)))
     sum_ofDsquared = 0
-    for cand in cands:
-        rank1 = list1.index(cand)
-        rank2 = list2.index(cand)
+
+    list1_avg_unused_rank = 0 
+    list2_avg_unused_rank = 0 
+
+    # pathc incomplte ballots with avg of unused ranks
+    if len(all_cands) != len(list1):
+        #list1_avg_unused_rank = sum(list(range(len(list1),len(all_cands))))/(len(all_cands)-len(list1))
+        list1_avg_unused_rank = (len(all_cands)+len(list1))/float(2)
+    if len(all_cands) != len(list2):
+        #list2_avg_unused_rank = sum(list(range(len(list2),len(all_cands))))/(len(all_cands)-len(list2))
+        list2_avg_unused_rank = (len(all_cands)+len(list2))/float(2)
+
+    for cand in all_cands:
+        if cand in list1:
+            rank1 = list1.index(cand)
+        else:
+            rank1 = list1_avg_unused_rank
+
+        if cand in list2:
+            rank2 = list2.index(cand)
+        else:
+            rank2 = list2_avg_unused_rank
+
         # print (rank1,rank2)
         D = (rank1-rank2)
         Dsquared = D**2
         sum_ofDsquared += Dsquared
     
     # print(sum_ofDsquared)
-    c = len(cands)
+    c = len(all_cands)
     return 1-(float(6*sum_ofDsquared)/(c*(c**2-1)))
 
 def get_mc(data,ties):
@@ -704,7 +705,8 @@ def analyze_profile(profile_data,runs):
     profile_data['num_elected'] = res['num_elected']
     profile_data['num_always_elected'] = res['num_always_elected']
     profile_data['entropy'] = res['entropy']
-    profile_data['measure_of_coord'] = get_mc(csv_data,ties)
+    # profile_data['measure_of_coord'] = get_mc(csv_data,ties)
+    # profile_data['measure_of_coord'] = get_coordination_measure(csv_data)
 
     profile_data['avg_top_ties'] = res['avg_top_ties']
     profile_data['avg_bottom_ties'] = res['avg_bottom_ties']
@@ -747,7 +749,7 @@ def e():
 
 
 if __name__ == '__main__':
-    BASEDIR = 'historical-names'
+    BASEDIR = 'historical'
     outfile = 'out'
     fh = open(outfile,"w")
     for subdir in os.listdir(BASEDIR):
@@ -757,9 +759,6 @@ if __name__ == '__main__':
             filepath = BASEDIR+'/'+subdir+'/'+file
             csv_data = jsonfile2table(filepath)
     
-            # print get_candidates(csv_data)
-            # e()
-
             droop = calculate_droop(votes,seats,100)
             runs = 1000
 

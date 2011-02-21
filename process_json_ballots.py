@@ -6,7 +6,7 @@ import copy
 import os
 import sys
 
-def fix_names(data,name_lookup):
+def fix_names(data):
     i = 0
     new_name = {}
     for c in get_cands(data):
@@ -77,6 +77,7 @@ if __name__ == "__main__":
     for file in os.listdir(BASEDIR):
         fh = open(BASEDIR+'/'+file)
         data = json.loads(fh.read())
+        year = data['ELECTION']['id']
         if int(year) > 2001:
             OUTDIR = TARGET+'/'+year
             if not os.path.exists(OUTDIR):
@@ -86,7 +87,7 @@ if __name__ == "__main__":
             # print check_ballots(data['BALLOTS'])
 
             # print year, fix_names(data['BALLOTS'])
-            ballotrows = even_ballot_lengths(fix_names(data['BALLOTS'],name_lookup))
+            ballotrows = even_ballot_lengths(fix_names(data['BALLOTS']))
             # filename = "{0}-x0-y0.json".format(year)
             filename = "{0}-no_swap.json".format(year)
             with open(OUTDIR+'/'+filename, mode='w') as f:
@@ -100,7 +101,8 @@ if __name__ == "__main__":
                     if differences:
                         #print differences
                         # filename = "{0}-x{1}-y{2}.json".format(year,x+1,y+1)
-                        filename = "{0}-ballot{1}-cand_at_rank{2}_swapped_with_cand_at_rank{3}.json".format(year,nb+1,nr+1,nr+2)
+                        #filename = "{0}-ballot{1}-cand_at_rank{2}_swapped_with_cand_at_rank{3}.json".format(year,nb+1,nr+1,nr+2)
+                        filename = "{0}-X{1}-Z{2}.json".format(year,nb+1,nr+1)
                         with open(OUTDIR+'/'+filename, mode='w') as f:
                             json.dump(tweaked, f)  
                             print "printed {0}".format(filename)
