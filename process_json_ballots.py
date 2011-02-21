@@ -12,7 +12,6 @@ def fix_names(data,name_lookup):
     for c in get_cands(data):
         i += 1
         new_name[c] = 'c'+str(i)
-        # new_name[c] = name_lookup[c]
     table = []
     for row in data:
         new_row = []
@@ -78,11 +77,6 @@ if __name__ == "__main__":
     for file in os.listdir(BASEDIR):
         fh = open(BASEDIR+'/'+file)
         data = json.loads(fh.read())
-        year = data['ELECTION']['id']
-        name_lookup = {}
-        import re
-        for c in data['CANDIDATES']:
-            name_lookup[c['EID']] = re.sub('[^a-zA-Z]','',c['Name'])
         if int(year) > 2001:
             OUTDIR = TARGET+'/'+year
             if not os.path.exists(OUTDIR):
