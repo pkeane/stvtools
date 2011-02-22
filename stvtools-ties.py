@@ -95,8 +95,6 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     top_ties = 0
     bottom_ties = 0
     for i in range(runs):
-        # print
-        # print "RUNNING PASS ",i
         # crazy Python pass-by behavior makes this not work:
         # result = tally_csv(swapped,cands,seats,droop,filename)
         result = tally_csv(swap(csv_data),cands,seats,droop,filename)
@@ -666,23 +664,10 @@ def analyze_profile(profile_data,runs):
     res = run_csv_tally(csv_data,seats,runs,droop)
 
     dur = time.time() - start
-
     res['tally_duration_secs'] = dur 
 
     for key in res:
         profile_data[key] = res[key]
-
-#    profile_data['slate'] = res['slate']
-#    profile_data['num_elected'] = res['num_elected']
-#    profile_data['num_always_elected'] = res['num_always_elected']
-#    profile_data['entropy'] = res['entropy']
-#    profile_data['avg_top_ties'] = res['avg_top_ties']
-#    profile_data['avg_bottom_ties'] = res['avg_bottom_ties']
-#    profile_data['droop_tie_at_top'] = res['droop_tie_at_top']
-#    profile_data['top_entropy'] = res['top_entropy']
-#    profile_data['top_factions'] = res['top_factions']
-#    profile_data['low_point_tie_at_top'] = res['low_point_tie_at_top']
-#    profile_data['droop_at_top'] = res['droop_at_top']
 
     profile_json = json.dumps(profile_data)
 

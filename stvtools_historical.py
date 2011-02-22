@@ -9,7 +9,6 @@ import httplib
 import itertools
 import math
 import optparse
-import pickle
 import os
 import re
 import socket
@@ -92,7 +91,7 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
     cell values represent EID and Name (no distinction).  
     """
     cands = get_candidates(csv_data) 
-    swapped = swap(csv_data) 
+    # swapped = swap(csv_data) 
     was_elected = {}
     top_ties = 0
     bottom_ties = 0
@@ -116,12 +115,13 @@ def run_csv_tally(csv_data,seats,runs,droop,filename=''):
 
     res['filename'] = filename 
 
-    regexp = re.compile(r"(?P<year>20[0-9]*)-X(?P<X>[0-9]*)-Z(?P<Z>[0-9]*).json")
-    result = regexp.search(file)
-    year = result.group('year')
-    res['X'] = result.group('X')
-    res['Z'] = result.group('Z')
+#    regexp = re.compile(r"(?P<year>20[0-9]*)-X(?P<X>[0-9]*)-Z(?P<Z>[0-9]*).json")
+#    result = regexp.search(filename)
+#    year = result.group('year')
+#    res['swapped_ballot'] = result.group('X')
+#    res['swapped_row'] = result.group('Z')
 
+    res['top_ties'] = top_ties
     res['bottom_ties'] = bottom_ties
     res['avg_top_ties'] = float(top_ties)/runs
     res['avg_bottom_ties'] = float(bottom_ties)/runs
@@ -179,8 +179,10 @@ def get_top_place_data(csv_data,droop,res):
             dict_of_vote_counts[num_votes] = 0
         dict_of_vote_counts[num_votes] += 1
 
+    # number of folks tied at top
     res['number_of_factions'] = len([x for x in dict_of_vote_counts if dict_of_vote_counts[x] > 1])
     res['most_top_place_votes'] = most_top_place_votes
+    # number of folks tied at top w/ most top place votes
     res['number_of_top_ties'] = dict_of_vote_counts[most_top_place_votes]
     res['droop_tie_at_top'] = 0
     res['low_point_tie_at_top'] = 0
@@ -555,14 +557,7 @@ def get_committee_counts(committee):
     return (full,non_full) 
 
 def jsondata2table(jsondata):
-    table = []
-    for line in jsondata:
-        row = []
-        for cell in line.split(','):
-            row.append(cell)
-        table.append(row)
-    return table
-
+    return swap(json.loads(jsondata[0]))
 
 def jsonfile2table(filename):
     fh = open(filename)
@@ -692,7 +687,6 @@ def get_mc(data,ties):
 
 def analyze_profile(profile_data,runs):
     seats = int(profile_data['seats'])
-    ties = int(profile_data['ties'])
     num_cands = int(profile_data['candidates'])
     droop = int(profile_data['droop'])
     votes = int(profile_data['votes'])
@@ -702,24 +696,14 @@ def analyze_profile(profile_data,runs):
     csv_data = jsondata2table(profile_data['data'])
 
     start = time.time()
-    res = run_csv_tally(csv_data,seats,runs,droop,filename)
+    res = run_csv_tally(csv_data,seats,runs,droop)
 
     dur = time.time() - start
-    profile_data['tally_duration_secs'] = dur 
-    profile_data['slate'] = res['slate']
-    profile_data['num_elected'] = res['num_elected']
-    profile_data['num_always_elected'] = res['num_always_elected']
-    profile_data['entropy'] = res['entropy']
-    # profile_data['measure_of_coord'] = get_mc(csv_data,ties)
-    # profile_data['measure_of_coord'] = get_coordination_measure(csv_data)
+    res['tally_duration_secs'] = dur 
 
-    profile_data['avg_top_ties'] = res['avg_top_ties']
-    profile_data['avg_bottom_ties'] = res['avg_bottom_ties']
-    profile_data['droop_tie_at_top'] = res['droop_tie_at_top']
-    profile_data['top_entropy'] = res['top_entropy']
-    profile_data['top_factions'] = res['top_factions']
-    profile_data['low_point_tie_at_top'] = res['low_point_tie_at_top']
-    profile_data['droop_at_top'] = res['droop_at_top']
+    for key in res:
+        profile_data[key] = res[key]
+
     profile_json = json.dumps(profile_data)
 
     h = httplib.HTTPConnection('dev.laits.utexas.edu',80)
@@ -735,15 +719,26 @@ def analyze_profile(profile_data,runs):
 
 
 def get_next_profile():
-    hpc_url = "http://dev.laits.utexas.edu/labs/stv/profile/next.json"
+    hpc_url = "http://dev.laits.utexas.edu/labs/stv_historical/profile/next.json"
     response = urllib2.urlopen(hpc_url)
     return json.loads(response.read())
 
 def get_election_info(year):
-    filename = 'elections/'+year+'_election.json'
-    fh = open(filename)
-    data = json.loads(fh.read())
-    return (int(data['ELECTION']['seats']),len(data['CANDIDATES']),len(data['BALLOTS']))
+    info = {
+        '2002': {'votes': 37, 'cands': 26, 'seats': 12}, 
+        '2003': {'votes': 35, 'cands': 30, 'seats': 12}, 
+        '2004': {'votes': 38, 'cands': 30, 'seats': 12}, 
+        '2005': {'votes': 45, 'cands': 32, 'seats': 12}, 
+        '2006': {'votes': 45, 'cands': 34, 'seats': 12}, 
+        '2007': {'votes': 46, 'cands': 32, 'seats': 12}, 
+        '2008': {'votes': 48, 'cands': 35, 'seats': 12}, 
+        '2009': {'votes': 50, 'cands': 29, 'seats': 12}, 
+        '2010': {'votes': 51, 'cands': 39, 'seats': 12},
+    }
+    #filename = 'elections/'+year+'_election.json'
+    #fh = open(filename)
+    #data = json.loads(fh.read())
+    return info[year] 
 
 # deprecated
 def get_tie_strings(list,log):
@@ -760,18 +755,16 @@ def get_tie_strings(list,log):
 def e():
     sys.exit()
 
-
-
-
-
-
-if __name__ == '__main__':
+if __name__ == '__xmain__':
     BASEDIR = 'historical'
     outfile = 'out'
     fh = open(outfile,"w")
     for subdir in os.listdir(BASEDIR):
         year = subdir
-        (seats,cands,votes) = get_election_info(year)
+        year_data = get_election_info(year)
+        seats = year_data['seats']
+        cands = year_data['cands']
+        votes = year_data['votes']
         for file in os.listdir(BASEDIR+'/'+subdir):
             filepath = BASEDIR+'/'+subdir+'/'+file
             csv_data = jsonfile2table(filepath)
@@ -790,7 +783,7 @@ if __name__ == '__main__':
 
 
 
-if __name__ == '__Xmain__':
+if __name__ == '__main__':
 
     runs = 1000
     status = '200'
