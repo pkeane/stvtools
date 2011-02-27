@@ -173,8 +173,12 @@ def get_top_place_data(csv_data,droop,res):
 
     # dict: key = vote count ; val = num_occurrences
     dict_of_vote_counts = {}
-    for eid in votes:
-        num_votes = votes[eid]
+    for eid in get_candidates(csv_data):
+        if eid in votes:
+            num_votes = votes[eid]
+        else: 
+            least_top_place_votes = 0 
+            num_votes = 0
         if num_votes not in dict_of_vote_counts:
             dict_of_vote_counts[num_votes] = 0
         dict_of_vote_counts[num_votes] += 1
