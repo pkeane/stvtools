@@ -1,6 +1,7 @@
 #!/bin/sh
 
-python2 stvtools.py &
-python2 stvtools.py &
-python2 stvtools.py &
 
+php 
+php calculate_uneven_simulation_12seats.php &
+php calculate_uneven_simulation_12seats.php &
+php calculate_uneven_simulation_12seats.php &

@@ -1,7 +1,8 @@
 from operator import itemgetter, attrgetter
 import pprint
-import simplejson as json
-import stvtools
+#import simplejson as json
+import json
+import stvtools_orig as stvtools
 import sys
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -42,9 +43,10 @@ def tally(json_data):
     return logs
 
 if __name__=="__main__":
-    data = open('2010.json').read()
+    data = open('elections/2011_election.json').read()
+    data = open('new2011.json').read()
     was_elected = {}
-    for i in range(1000):
+    for i in range(100):
         result = tally(data)
         last = result.pop()
         for cand in last['committee']:
